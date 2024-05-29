@@ -49,6 +49,7 @@ int main(int argc, char **argv) {
     mesh->initialize("../models/ico.obj");
     if (!mesh->isValid()) return 1;
     object->addComponent(new purrMeshComp(mesh));
+    object->getTransform()->setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
     scene->addObject(object);
   }
 
@@ -91,8 +92,9 @@ int main(int argc, char **argv) {
     }
 
     renderer::updateCamera();
+    renderer::updateTransforms();
     scenePipeline->begin({{{0.0f, 0.0f, 0.0f, 1.0f}}});
-    renderer::renderScene();
+    renderer::renderScene(scenePipeline);
     scenePipeline->end();
 
     renderer::render();

@@ -73,7 +73,7 @@ namespace PurrfectEngine {
   }
 
   void purrTexture::cleanup() {
-    delete mImage;
+    if (mImage) delete mImage;
     if (mDescriptor) delete mDescriptor;
     mImage = nullptr;
     mDescriptor = nullptr;

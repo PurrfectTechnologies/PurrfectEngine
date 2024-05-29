@@ -18,7 +18,7 @@ namespace PurrfectEngine {
   }
 
   void purrTransform::update() {
-    mTransform = glm::mat4(mRot) * glm::scale(glm::translate(glm::mat4(1.0f), mPos), mScale);
+    mTransform = glm::mat4(glm::mat3(mRot)) * glm::scale(glm::translate(glm::mat4(1.0f), mPos), mScale);
   }
 
   void purrTransform::setTransform(glm::mat4 trans) {

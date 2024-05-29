@@ -29,6 +29,8 @@ namespace PurrfectEngine {
 
     static void setContext(PurrfectEngineContext *context);
   public:
+    fr::frPipeline *get() const { return mPipeline; }
+
     purrTexture *getColor() const { return mColorTexture; }
     purrTexture *getDepth() const { return mDepthTexture; }
   private:
