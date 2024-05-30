@@ -41,6 +41,11 @@ namespace PurrfectEngine {
 
   void createSwapchain() {
     sContext->frSwapchain = new fr::frSwapchain();
+    if (sVSync) {
+      sContext->frSwapchain->setDesiredPresentModes({ VK_PRESENT_MODE_FIFO_KHR });
+    } else {
+      sContext->frSwapchain->setDesiredPresentModes({ VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
+    }
     sContext->frSwapchain->initialize(sContext->frRenderer, sContext->frWindow);
     sImageCount = sContext->frSwapchain->imageCount();
   }
