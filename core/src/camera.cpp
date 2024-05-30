@@ -15,7 +15,7 @@ namespace PurrfectEngine {
   }
 
   glm::mat4 purrCamera::getView() {
-    return glm::lookAt(mTransform->getPosition(), mTransform->getPosition() + mTransform->getForward(), glm::vec3(0.0f, 1.0f, 0.0f)); // TODO: Maybe let user to choose up direction?
+    return glm::lookAt(mTransform->getPosition(), mTransform->getPosition() + mTransform->getForward(), glm::vec3(0.0f, -1.0f, 0.0f)); // TODO: Maybe let user to choose up direction?
   }
 
 }

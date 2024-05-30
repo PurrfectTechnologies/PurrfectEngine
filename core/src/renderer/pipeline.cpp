@@ -123,6 +123,11 @@ namespace PurrfectEngine {
     });
 
     mPipeline->addDescriptor(sContext->frUboLayout);
+    mPipeline->addDescriptor(sContext->frStorageBufLayout);
+    mPipeline->addPushConstant(VkPushConstantRange{
+      VK_SHADER_STAGE_VERTEX_BIT,
+      0, sizeof(uint32_t)
+    });
   }
 
   purrPipeline::~purrPipeline() {
@@ -148,6 +153,7 @@ namespace PurrfectEngine {
     mRenderPass->begin(sContext->frActiveCmdBuf, VkExtent2D{static_cast<uint32_t>(mCreateInfo.width), static_cast<uint32_t>(mCreateInfo.height)}, mFramebuffer, clearValues);
     mPipeline->bind(sContext->frActiveCmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS);
     renderer::bindCamera(mPipeline);
+    renderer::bindTransforms(mPipeline);
   }
 
   void purrPipeline::end() {

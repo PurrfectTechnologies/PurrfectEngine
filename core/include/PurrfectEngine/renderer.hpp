@@ -89,11 +89,13 @@ namespace PurrfectEngine {
     void getSwapchainSize(int *width, int *height);
     void setScenePipeline(purrPipeline *scenePipeline);
     void updateCamera();
+    void updateTransforms();
 
     bool shouldClose();
     bool renderBegin();
     void bindCamera(fr::frPipeline *pipeline);
-    void renderScene();
+    void bindTransforms(fr::frPipeline *pipeline);
+    void renderScene(purrPipeline *pipeline);
     void render();
     bool present();
     
