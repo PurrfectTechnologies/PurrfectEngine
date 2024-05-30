@@ -367,7 +367,7 @@ namespace PurrfectEngine {
   void renderer::setScenePipeline(purrPipeline *scenePipeline) {
     sScenePipeline = scenePipeline;
 
-    sSceneDescriptor = scenePipeline->getColor()->getDescriptor();
+    sSceneDescriptor = sScenePipeline->getColor()->getDescriptor();
   }
 
   void renderer::updateCamera() {

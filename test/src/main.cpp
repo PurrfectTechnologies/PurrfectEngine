@@ -1,111 +1,98 @@
 #include <iostream>
 
+#define PURRENGINE_MAIN
 #include <PurrfectEngine/PurrfectEngine.hpp>
 
 using namespace PurrfectEngine;
-namespace renderer = PurrfectEngine::renderer;
-namespace input = PurrfectEngine::Input;
 
-purrPipeline* scenePipeline = nullptr;
-purrTexture* sceneRenderTarget = nullptr;
+class testApp: public purrApp {
+public:
+  testApp():
+    purrApp("PurrfectEngine - Test")
+  {}
 
-void createSceneObjects(int width, int height) {
-  scenePipeline = new PurrfectEngine::purrPipeline();
-  scenePipeline->initialize({
-    width, height,
-    { {VK_SHADER_STAGE_VERTEX_BIT, "../shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../shaders/frag.spv"} },
-    &sceneRenderTarget, nullptr, nullptr
-  });
-  renderer::setScenePipeline(scenePipeline);
-}
+  ~testApp() {
 
-void cleanupSceneObjects() {
-  delete scenePipeline;
-}
-
-void recreateSceneObjects(int width, int height) {
-  cleanupSceneObjects();
-  createSceneObjects(width, height);
-}
-
-int main(int argc, char **argv) {
-  PurrfectEngine::PurrfectEngineContext *context = new PurrfectEngine::PurrfectEngineContext();
-
-  try {
-  input::setContext(context);
-  renderer::setContext(context);
-  renderer::setVSync(true);
-  renderer::initialize("PurrfectEngine - Test", 1920, 1080);
-
-  purrScene *scene = new purrScene();
-  { // Initialize object
-    purrObject *object = new purrObject();
-    purrMesh *mesh = new purrMesh();
-    mesh->initialize("../models/ico.obj");
-    if (!mesh->isValid()) return 1;
-    object->addComponent(new purrMeshComp(mesh));
-    object->getTransform()->setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
-    scene->addObject(object);
   }
 
-  { // Initialize camera
-    purrObject *object = new purrObject(new purrTransform(glm::vec3(0.0f, 0.0f, -5.0f)));
-    object->addComponent(new purrCameraComp(new purrCamera()));
-    scene->addObject(object);
-    scene->setCamera(object);
-  }
-  renderer::setScene(scene);
-
-  int width = 0, height = 0;
-  renderer::getSwapchainSize(&width, &height);
-  createSceneObjects(width, height);
-
-  bool escapePressed = false;
-  float lastTime = 0;
-  while (!renderer::shouldClose()) {
-    float time = (float)glfwGetTime();
-    float deltaTime = time - lastTime;
-    lastTime = time;
-
-    glfwPollEvents();
-
+  virtual void update(float dt) override {
     int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
     int z = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
 
-    glm::vec3 pos = scene->getCamera()->getTransform()->getPosition();
-    pos.x += x * deltaTime;
-    pos.z += z * deltaTime;
-    scene->getCamera()->getTransform()->setPosition(pos);
-
-    if (!renderer::renderBegin()) {
-      renderer::getSwapchainSize(&width, &height);
-      recreateSceneObjects(width, height);
-      continue;
-    }
-
-    renderer::updateCamera();
-    renderer::updateTransforms();
-
-    scenePipeline->begin({{{0.0f, 0.0f, 0.0f, 1.0f}}}); {
-      renderer::renderScene(scenePipeline);
-    } scenePipeline->end();
-
-    renderer::render();
-    if (!renderer::present()) {
-      renderer::getSwapchainSize(&width, &height);
-      recreateSceneObjects(width, height);
-    }
-  }
-  
-  renderer::waitIdle();
-  delete scene;
-  cleanupSceneObjects();
-  renderer::cleanup();
-  } catch (fr::frVulkanException &ex) {
-    fprintf(stderr, "Vulkan exception caught: %s\n", ex.what());
+    glm::vec3 pos = mScene->getCamera()->getTransform()->getPosition();
+    pos.x += x * dt;
+    pos.z += z * dt;
+    mScene->getCamera()->getTransform()->setPosition(pos);
   }
 
-  delete context;
+  virtual void render(float dt) override {
+    mScenePipeline->begin({{{0.0f, 0.0f, 0.0f, 1.0f}}}); {
+      renderer::renderScene(mScenePipeline);
+    } mScenePipeline->end();
+  }
 
-  return 0;
+  virtual void resize() override {
+    glm::ivec2 size = GetSize();
+    recreateSceneObjects(size.x, size.y);
+  }
+protected:
+  virtual bool initialize() override {
+    mScene = new purrScene();
+    { // Initialize object
+      purrObject *object = new purrObject();
+      purrMesh *mesh = new purrMesh();
+      mesh->initialize("../models/ico.obj");
+      if (!mesh->isValid()) return false;
+      object->addComponent(new purrMeshComp(mesh));
+      object->getTransform()->setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
+      mScene->addObject(object);
+    }
+
+    { // Initialize camera
+      purrObject *object = new purrObject(new purrTransform(glm::vec3(0.0f, 0.0f, -5.0f)));
+      object->addComponent(new purrCameraComp(new purrCamera()));
+      mScene->addObject(object);
+      mScene->setCamera(object);
+    }
+
+    SetScene(mScene);
+
+    glm::ivec2 size = GetSize();
+    createSceneObjects(size.x, size.y);
+    SetFinalPipeline(mScenePipeline);
+
+    return true;
+  }
+
+  virtual void cleanup() override {
+    delete mScene;
+    cleanupSceneObjects();
+  }
+private:
+  void createSceneObjects(int width, int height) {
+    mScenePipeline = new purrPipeline();
+    mScenePipeline->initialize({
+      width, height,
+      { {VK_SHADER_STAGE_VERTEX_BIT, "../shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../shaders/frag.spv"} },
+      &mSceneRenderTarget, nullptr, nullptr
+    });
+    SetFinalPipeline(mScenePipeline);
+  }
+
+  void cleanupSceneObjects() {
+    delete mScenePipeline;
+  }
+
+  void recreateSceneObjects(int width, int height) {
+    cleanupSceneObjects();
+    createSceneObjects(width, height);
+  }
+private:
+  purrScene    *mScene = nullptr;
+  purrPipeline *mScenePipeline = nullptr;
+  purrTexture  *mSceneRenderTarget = nullptr;
+};
+
+purrApp *PurrfectEngine::CreateApp() {
+  return new testApp();
 }

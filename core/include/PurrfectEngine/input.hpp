@@ -3,7 +3,7 @@
 
 namespace PurrfectEngine {
 
-  namespace Input {
+  namespace input {
 
     using KeyCode = unsigned short; // uint16_t
     using MouseCode = unsigned short;

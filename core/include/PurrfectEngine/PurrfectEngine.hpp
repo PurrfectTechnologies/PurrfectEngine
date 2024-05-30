@@ -45,5 +45,10 @@ namespace PurrfectEngine {
 
 #include "PurrfectEngine/renderer.hpp"
 #include "PurrfectEngine/input.hpp"
+#include "PurrfectEngine/app.hpp"
+
+#ifdef PURRENGINE_MAIN
+#include "PurrfectEngine/entry.hpp"
+#endif
 
 #endif // PURRENGINE_PURRFECTENGINE_HPP_
