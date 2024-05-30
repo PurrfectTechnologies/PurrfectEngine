@@ -37,6 +37,7 @@ namespace PurrfectEngine {
     fr::frDescriptors              *frTextureDescriptors = nullptr;
     fr::frDescriptorLayout         *frTextureLayout = nullptr;
     fr::frDescriptorLayout         *frUboLayout = nullptr;
+    fr::frDescriptorLayout         *frStorageBufLayout = nullptr;
     VkCommandBuffer                 frActiveCmdBuf = VK_NULL_HANDLE;
     VkFormat                        frDepthFormat = VK_FORMAT_UNDEFINED;
 
