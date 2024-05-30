@@ -18,17 +18,13 @@ namespace PurrfectEngine {
     X64  = VK_SAMPLE_COUNT_64_BIT,
   };
 
-  struct PurrfectEngineSettings {
-    MSAA msaa = MSAA::None;
-  };
-
   struct PurrfectEngineContext {
-    PurrfectEngineSettings settings{};
-    
+    MSAA                            frMsaa = MSAA::None;
     fr::frWindow                   *frWindow = nullptr;
     fr::frRenderer                 *frRenderer = nullptr;
     fr::frSwapchain                *frSwapchain = nullptr;
     fr::frRenderPass               *frRenderPass = nullptr;
+    fr::frRenderPass               *frSceneRenderPass = nullptr;
     fr::frPipeline                 *frPipeline = nullptr;
     std::vector<fr::frImage*>       frScImages{};
     std::vector<fr::frFramebuffer*> frFbs{};
@@ -39,6 +35,7 @@ namespace PurrfectEngine {
     fr::frDescriptorLayout         *frUboLayout = nullptr;
     fr::frDescriptorLayout         *frStorageBufLayout = nullptr;
     VkCommandBuffer                 frActiveCmdBuf = VK_NULL_HANDLE;
+    VkFormat                        frSceneFormat = VK_FORMAT_UNDEFINED;
     VkFormat                        frDepthFormat = VK_FORMAT_UNDEFINED;
 
     purrScene *activeScene = nullptr;

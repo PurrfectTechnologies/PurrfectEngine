@@ -8,23 +8,18 @@ namespace input = PurrfectEngine::Input;
 
 purrPipeline* scenePipeline = nullptr;
 purrTexture* sceneRenderTarget = nullptr;
-purrSampler* sceneSampler = nullptr;
 
 void createSceneObjects(int width, int height) {
-  sceneRenderTarget = new PurrfectEngine::purrTexture(width, height, VK_FORMAT_R16G16B16A16_SFLOAT);
-  sceneRenderTarget->initialize(sceneSampler, false);
-  PurrfectEngine::purrPipelineCreateInfo pipelineInfo = {
+  scenePipeline = new PurrfectEngine::purrPipeline();
+  scenePipeline->initialize({
     width, height,
     { {VK_SHADER_STAGE_VERTEX_BIT, "../shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../shaders/frag.spv"} },
-    sceneRenderTarget
-  };
-  scenePipeline = new PurrfectEngine::purrPipeline(pipelineInfo);
-  scenePipeline->initialize();
+    &sceneRenderTarget, nullptr, nullptr
+  });
   renderer::setScenePipeline(scenePipeline);
 }
 
 void cleanupSceneObjects() {
-  delete sceneRenderTarget;
   delete scenePipeline;
 }
 
@@ -61,9 +56,6 @@ int main(int argc, char **argv) {
   }
   renderer::setScene(scene);
 
-  sceneSampler = new purrSampler();
-  sceneSampler->initialize(fr::frSampler::frSamplerInfo{});
-
   int width = 0, height = 0;
   renderer::getSwapchainSize(&width, &height);
   createSceneObjects(width, height);
@@ -93,9 +85,10 @@ int main(int argc, char **argv) {
 
     renderer::updateCamera();
     renderer::updateTransforms();
-    scenePipeline->begin({{{0.0f, 0.0f, 0.0f, 1.0f}}});
-    renderer::renderScene(scenePipeline);
-    scenePipeline->end();
+
+    scenePipeline->begin({{{0.0f, 0.0f, 0.0f, 1.0f}}}); {
+      renderer::renderScene(scenePipeline);
+    } scenePipeline->end();
 
     renderer::render();
     if (!renderer::present()) {
@@ -106,7 +99,6 @@ int main(int argc, char **argv) {
   
   renderer::waitIdle();
   delete scene;
-  delete sceneSampler;
   cleanupSceneObjects();
   renderer::cleanup();
   } catch (fr::frVulkanException &ex) {

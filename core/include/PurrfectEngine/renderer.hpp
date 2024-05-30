@@ -84,6 +84,7 @@ namespace PurrfectEngine {
     void setScene(purrScene *scene);
 
     void setVSync(bool enabled);
+    void setMSAA(MSAA msaa);
     void initialize(std::string title, int width, int height);
 
     void getSwapchainSize(int *width, int *height);

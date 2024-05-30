@@ -11,6 +11,7 @@ namespace PurrfectEngine {
 
   static bool sVSync = false;
   static bool sScDirty = false;
+  static bool sScPassDirty = false;
   static uint32_t sImageCount = 0;
   static uint32_t sFrame = 0;
   static uint32_t sImageIndex = 0;
@@ -94,6 +95,167 @@ namespace PurrfectEngine {
     createSwapchainObjects();
   }
 
+  void createScenePass() {
+    VkAttachmentReference colorRef = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+
+    VkAttachmentReference depthRef = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
+
+    sContext->frSceneRenderPass = new fr::frRenderPass();
+    sContext->frSceneRenderPass->addAttachment(VkAttachmentDescription{
+      0, sContext->frSceneFormat, (VkSampleCountFlagBits)sContext->frMsaa,
+      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+      VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    });
+
+    sContext->frSceneRenderPass->addAttachment(VkAttachmentDescription{
+      0, sContext->frDepthFormat, (VkSampleCountFlagBits)sContext->frMsaa,
+      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    });
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorRef;
+    subpass.pDepthStencilAttachment = &depthRef;
+    sContext->frSceneRenderPass->addSubpass(subpass);
+
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    sContext->frSceneRenderPass->addDependency(dependency);
+
+    sContext->frSceneRenderPass->initialize(sContext->frRenderer);
+    sContext->frSceneRenderPass->setName(sContext->frRenderer, "Scene RenderPass");
+  }
+
+  void cleanupScenePass() {
+    delete sContext->frSceneRenderPass;
+  }
+
+  void recreateScenePass() {
+    cleanupScenePass();
+    createScenePass();
+  }
+
+  void createRenderPass() {
+    sContext->frRenderPass = new fr::frRenderPass();
+    sContext->frRenderPass->addAttachment(VkAttachmentDescription{
+      0, sContext->frSwapchain->format(), (VkSampleCountFlagBits)sContext->frMsaa,
+      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+      VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    });
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    sContext->frRenderPass->addSubpass(subpass);
+    sContext->frRenderPass->addDependency(dependency);
+    sContext->frRenderPass->initialize(sContext->frRenderer);
+    sContext->frRenderPass->setName(sContext->frRenderer, "Swapchain RP");
+  }
+
+  void createSwapchainPipeline() {
+    sContext->frPipeline = new fr::frPipeline();
+
+    auto vertShader = new fr::frShader();
+    auto fragShader = new fr::frShader();
+    { // Vertex shader
+      vertShader->initialize(sContext->frRenderer, vertexShader_program, VK_SHADER_STAGE_VERTEX_BIT);
+      sContext->frPipeline->addShader(vertShader);
+    }
+    { // Fragment shader
+      fragShader->initialize(sContext->frRenderer, fragmentShader_program, VK_SHADER_STAGE_FRAGMENT_BIT);
+      sContext->frPipeline->addShader(fragShader);
+    }
+
+    sContext->frPipeline->setVertexInputState<Vertex2D>();
+
+    sContext->frPipeline->setMultisampleInfo(VkPipelineMultisampleStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
+      (VkSampleCountFlagBits)sContext->frMsaa, VK_FALSE, 0.0f, VK_NULL_HANDLE,
+      VK_FALSE, VK_FALSE
+    });
+
+    sContext->frPipeline->setInputAssemblyState(VkPipelineInputAssemblyStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
+      VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
+    });
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+
+    sContext->frPipeline->setColorBlendState(VkPipelineColorBlendStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
+      VK_FALSE,
+      VK_LOGIC_OP_COPY,
+      1,
+      &colorBlendAttachment,
+      {0.0f, 0.0f, 0.0f, 0.0f}
+    });
+
+    sContext->frPipeline->setRasterizationState(VkPipelineRasterizationStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
+      VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE,
+      VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
+    });
+
+    std::vector<VkDynamicState> dynamicStates = {
+      VK_DYNAMIC_STATE_VIEWPORT,
+      VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    sContext->frPipeline->setDynamicState(VkPipelineDynamicStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
+      static_cast<uint32_t>(dynamicStates.size()), dynamicStates.data()
+    });
+
+    sContext->frPipeline->setViewportState(VkPipelineViewportStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
+      1, nullptr, 1, nullptr
+    });
+
+    sContext->frPipeline->addDescriptor(sContext->frTextureLayout);
+
+    sContext->frPipeline->initialize(sContext->frRenderer, sContext->frRenderPass);
+
+    delete vertShader;
+    delete fragShader;
+  }
+
+  void cleanupRenderPass() {
+    delete sContext->frRenderPass;
+    delete sContext->frPipeline;
+  }
+
+  void recreateRenderPass() {
+    cleanupRenderPass();
+    createRenderPass();
+    createSwapchainPipeline();
+  }
+
   void renderer::setContext(PurrfectEngineContext *context) {
     sContext = context;
     purrTexture::setContext(context);
@@ -109,6 +271,12 @@ namespace PurrfectEngine {
     if (sVSync == enabled) return;
     sVSync = enabled;
     sScDirty = true;
+  }
+
+  void renderer::setMSAA(MSAA msaa) {
+    if (sContext->frMsaa == msaa) return;
+    sContext->frMsaa = msaa;
+    sScPassDirty = true;
   }
 
   void renderer::initialize(std::string title, int width, int height) {
@@ -129,37 +297,7 @@ namespace PurrfectEngine {
 
     createSwapchain();
 
-    { // Swapchain RenderPass
-      sContext->frRenderPass = new fr::frRenderPass();
-      sContext->frRenderPass->addAttachment(VkAttachmentDescription{
-        0, sContext->frSwapchain->format(), (VkSampleCountFlagBits)sContext->settings.msaa,
-        VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-        VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-      });
-
-      VkAttachmentReference colorAttachmentRef{};
-      colorAttachmentRef.attachment = 0;
-      colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-      VkSubpassDescription subpass{};
-      subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-      subpass.colorAttachmentCount = 1;
-      subpass.pColorAttachments = &colorAttachmentRef;
-
-      VkSubpassDependency dependency{};
-      dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-      dependency.dstSubpass = 0;
-      dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-      dependency.srcAccessMask = 0;
-      dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-      dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-      sContext->frRenderPass->addSubpass(subpass);
-      sContext->frRenderPass->addDependency(dependency);
-      sContext->frRenderPass->initialize(sContext->frRenderer);
-      sContext->frRenderPass->setName(sContext->frRenderer, "Swapchain RP");
-    }
+    createRenderPass();
 
     sContext->frTextureLayout = new fr::frDescriptorLayout();
     sContext->frTextureLayout->addBinding(VkDescriptorSetLayoutBinding{
@@ -185,74 +323,7 @@ namespace PurrfectEngine {
     });
     sContext->frStorageBufLayout->initialize(sContext->frRenderer);
 
-    { // Swapchain Pipeline
-      sContext->frPipeline = new fr::frPipeline();
-
-      auto vertShader = new fr::frShader();
-      auto fragShader = new fr::frShader();
-      { // Vertex shader
-        vertShader->initialize(sContext->frRenderer, vertexShader_program, VK_SHADER_STAGE_VERTEX_BIT);
-        sContext->frPipeline->addShader(vertShader);
-      }
-      { // Fragment shader
-        fragShader->initialize(sContext->frRenderer, fragmentShader_program, VK_SHADER_STAGE_FRAGMENT_BIT);
-        sContext->frPipeline->addShader(fragShader);
-      }
-
-      sContext->frPipeline->setVertexInputState<Vertex2D>();
-
-      sContext->frPipeline->setMultisampleInfo(VkPipelineMultisampleStateCreateInfo{
-        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-        (VkSampleCountFlagBits)sContext->settings.msaa, VK_FALSE, 0.0f, VK_NULL_HANDLE,
-        VK_FALSE, VK_FALSE
-      });
-
-      sContext->frPipeline->setInputAssemblyState(VkPipelineInputAssemblyStateCreateInfo{
-        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
-      });
-
-      VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-      colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-      colorBlendAttachment.blendEnable = VK_FALSE;
-
-      sContext->frPipeline->setColorBlendState(VkPipelineColorBlendStateCreateInfo{
-        VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-        VK_FALSE,
-        VK_LOGIC_OP_COPY,
-        1,
-        &colorBlendAttachment,
-        {0.0f, 0.0f, 0.0f, 0.0f}
-      });
-
-      sContext->frPipeline->setRasterizationState(VkPipelineRasterizationStateCreateInfo{
-        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-        VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE,
-        VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
-      });
-
-      std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-      };
-
-      sContext->frPipeline->setDynamicState(VkPipelineDynamicStateCreateInfo{
-        VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-        static_cast<uint32_t>(dynamicStates.size()), dynamicStates.data()
-      });
-
-      sContext->frPipeline->setViewportState(VkPipelineViewportStateCreateInfo{
-        VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-        1, nullptr, 1, nullptr
-      });
-
-      sContext->frPipeline->addDescriptor(sContext->frTextureLayout);
-
-      sContext->frPipeline->initialize(sContext->frRenderer, sContext->frRenderPass);
-
-      delete vertShader;
-      delete fragShader;
-    }
+    createSwapchainPipeline();
 
     createSwapchainObjects();
 
@@ -279,6 +350,9 @@ namespace PurrfectEngine {
     }
 
     sContext->frDepthFormat = sContext->frRenderer->FindSupportedFormat({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    sContext->frSceneFormat = sContext->frRenderer->FindSupportedFormat({VK_FORMAT_R64G64B64A64_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R16G16B16A16_SFLOAT}, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
+   
+    createScenePass();
   }
 
   void renderer::getSwapchainSize(int *width, int *height) {
@@ -459,14 +533,20 @@ namespace PurrfectEngine {
       sScDirty = true;
     }
 
+    bool res = !sScDirty;
     if (sScDirty) {
       recreateSwapchain();
       sScDirty = false;
-      sFrame = (sFrame+1) % sContext->frSwapchain->imageCount();
-      return false;
     }
+    
+    if (sScPassDirty) { // Recreate scene pass (MSAA changed)
+      recreateRenderPass();
+      recreateScenePass();
+      sScPassDirty = false;
+    }
+
     sFrame = (sFrame+1) % sContext->frSwapchain->imageCount();
-    return true;
+    return res;
   }
 
   void renderer::waitIdle() {
@@ -482,8 +562,8 @@ namespace PurrfectEngine {
     cleanupSwapchain();
     if (sCameraBuffer) delete sCameraBuffer;
     if (sTransformsBuffer) delete sTransformsBuffer;
-    delete sContext->frRenderPass;
-    delete sContext->frPipeline;
+    cleanupScenePass();
+    cleanupRenderPass();
     delete sContext->frCommands;
     delete sContext->frDescriptors;
     delete sContext->frTextureDescriptors;
