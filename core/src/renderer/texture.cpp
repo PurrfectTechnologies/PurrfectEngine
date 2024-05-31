@@ -135,6 +135,16 @@ namespace PurrfectEngine {
     mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
   }
 
+  void purrTexture::getPixels(std::vector<uint8_t>& pixels, size_t& size) const {
+    if (mImage == nullptr) {
+        size = 0;
+        return;
+    }
+    size = mWidth * mHeight * 4; 
+    pixels.resize(size);
+    mImage->getData(pixels.data(), size);
+  }
+
   void purrTexture::setContext(PurrfectEngineContext *context) {
     sContext = context;
   }

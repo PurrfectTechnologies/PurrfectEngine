@@ -32,6 +32,7 @@ namespace PurrfectEngine {
 
     void setPixels(std::vector<uint8_t> pixels);
     void setPixels(uint8_t *pixels, size_t size);
+    void getPixels(std::vector<uint8_t>& pixels, size_t& size) const;
 
     static void setContext(PurrfectEngineContext *context);
   public:

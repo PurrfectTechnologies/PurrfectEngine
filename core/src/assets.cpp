@@ -68,4 +68,44 @@ namespace PurrfectEngine {
     return file.save(filename);
   }
 
+  TextureAsset::TextureAsset(int width, int height, VkFormat format)
+    : texture(width, height, format) { }
+
+  TextureAsset::~TextureAsset() { texture.cleanup(); }
+
+  bool TextureAsset::load(const char *filename) {
+      purrAssetFile file;
+      if (!file.load(filename)) {
+          return false;
+      }
+      return _load(file);
+  }
+
+  bool TextureAsset::save(const char *filename) {
+      purrAssetFile file;
+      if (!_save(&file)) {
+          return false;
+      }
+      return file.save(filename);
+  }
+
+  bool TextureAsset::_load(purrAssetFile file) {
+      texture.initialize(purrSampler::getDefault());
+      texture.setPixels(reinterpret_cast<uint8_t*>(file.blob), file.blob_len);
+      return true;
+  }
+
+  bool TextureAsset::_save(purrAssetFile *file) {
+      std::vector<uint8_t> pixels;
+      size_t pixelSize = 0;
+      
+      texture.getPixels(pixels, pixelSize);
+
+      file->blob_len = static_cast<uint32_t>(pixels.size());
+      file->blob = (char*)malloc(file->blob_len);
+      memcpy(file->blob, pixels.data(), file->blob_len);
+
+      return true;
+  }
+
 }

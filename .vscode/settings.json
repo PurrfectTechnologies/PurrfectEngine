@@ -72,6 +72,14 @@
     "xtr1common": "cpp",
     "xtree": "cpp",
     "ranges": "cpp",
-    "span": "cpp"
-  }
+    "span": "cpp",
+    "any": "cpp",
+    "codecvt": "cpp",
+    "filesystem": "cpp",
+    "map": "cpp",
+    "numeric": "cpp",
+    "unordered_set": "cpp",
+    "valarray": "cpp"
+  },
+  "C_Cpp.errorSquiggles": "disabled"
 }
