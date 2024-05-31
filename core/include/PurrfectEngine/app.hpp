@@ -21,19 +21,9 @@ namespace PurrfectEngine {
     void SetScene(purrScene *scene);
     void SetFinalPipeline(purrPipeline *pipeline);
     glm::ivec2 GetSize();
-
-    void setAssetDir(const char*);
-    const char* getAssetDir() const;
-
-    void setProjDir(const char*);
-    const char* getProjDir() const;
-
   public:
     static purrApp *get() { return sInstance; }
   private:
-    char* mAssetDir;
-    char* mProjDir;
-
     const char *mWindowName = nullptr;
     inline static purrApp *sInstance = nullptr;
   };

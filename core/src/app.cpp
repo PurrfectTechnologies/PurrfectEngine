@@ -78,19 +78,4 @@ namespace PurrfectEngine {
     return glm::ivec2(w, h);
   }
 
-  void purrApp::setAssetDir(const char *dir) {
-    if (mAssetDir) free(mAssetDir);
-    mAssetDir = (char*)malloc(strlen(dir));
-    strcpy(mAssetDir, dir);
-  }
-
-  void purrApp::setProjDir(const char *dir) {
-    if (mProjDir) free(mProjDir);
-    mProjDir = (char*)malloc(strlen(dir));
-    strcpy(mProjDir, dir);
-  }
-
-  const char *purrApp::getAssetDir() const { return mAssetDir; }
-  const char *purrApp::getProjDir() const { return mProjDir; }
-
 }
