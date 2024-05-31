@@ -85,6 +85,7 @@ namespace PurrfectEngine {
 
     std::vector<const char *> mCompNames{};
     std::vector<purrComponent*> mComponents{};
+    
   };
 
 }

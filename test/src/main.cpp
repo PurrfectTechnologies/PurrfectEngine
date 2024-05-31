@@ -9,6 +9,7 @@ class testApp: public purrApp {
 public:
   testApp():
     purrApp("PurrfectEngine - Test")
+    
   {}
 
   ~testApp() {
