@@ -2,6 +2,9 @@
 
 #include <assert.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 namespace PurrfectEngine {
 
   static PurrfectEngineContext *sContext = nullptr;
@@ -44,25 +47,48 @@ namespace PurrfectEngine {
     cleanup();
   }
 
-  void purrTexture::initialize(purrSampler *sampler, bool mipmaps, bool color) {
+  void purrTexture::initialize(const char *filename, purrSampler *sampler, bool mipmaps, bool color) {
     if (mImage) cleanup(); // I don't trust my ability of writing code that won't leak memory (NULL)
     mMipmaps = mipmaps;
     mColor = color;
     mImage = new fr::frImage();
     mImage->initialize(sContext->frRenderer, fr::frImage::frImageInfo{
-      mWidth, mHeight, mFormat,
+      mWidth, mHeight, 1, mFormat,
       (VkImageUsageFlagBits)((color?VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT:VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) | (mipmaps ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : 0) | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
       true, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       color?VK_IMAGE_ASPECT_COLOR_BIT:VK_IMAGE_ASPECT_DEPTH_BIT, mipmaps
     });
-    mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
-      VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-      0,
-      VK_ACCESS_SHADER_READ_BIT,
-    });
+    if (filename) {
+      mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0, VK_ACCESS_TRANSFER_WRITE_BIT,
+      });
+
+      fr::frBuffer *stagingBuf = new fr::frBuffer();
+      stagingBuf->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
+        mWidth * mHeight * 4, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
+      });
+      int w, h, c;
+      stbi_uc *data = stbi_load(filename, &w, &h, &c, STBI_rgb_alpha);
+      if (w != mWidth || h != mHeight) { cleanup(); return; } // TODO: Add proper handler
+      stagingBuf->copyData(0, mWidth*mHeight*4, data);
+      stbi_image_free(data);
+      delete stagingBuf;
+    }
+    if (mMipmaps) mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
+    else if (!filename) {
+      mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
+        ((!filename)?VK_IMAGE_LAYOUT_UNDEFINED:VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL),
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        ((!filename)?VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT:VK_PIPELINE_STAGE_TRANSFER_BIT),
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        ((!filename)?(VkAccessFlags)0:VK_ACCESS_TRANSFER_WRITE_BIT),
+        VK_ACCESS_SHADER_READ_BIT,
+      });
+    }
 
     mSampler = sampler;
 
@@ -91,7 +117,7 @@ namespace PurrfectEngine {
     mWidth = width;
     mHeight = height;
     cleanup();
-    initialize(mSampler, mMipmaps, mColor);
+    initialize(nullptr, mSampler, mMipmaps, mColor);
   }
 
   void purrTexture::setPixels(std::vector<uint8_t> pixels) {
@@ -133,16 +159,6 @@ namespace PurrfectEngine {
     });
     mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer, size);
     mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
-  }
-
-  void purrTexture::getPixels(std::vector<uint8_t>& pixels, size_t& size) const {
-    if (mImage == nullptr) {
-        size = 0;
-        return;
-    }
-    size = mWidth * mHeight * 4; 
-    pixels.resize(size);
-    mImage->getData(pixels.data(), size);
   }
 
   void purrTexture::setContext(PurrfectEngineContext *context) {

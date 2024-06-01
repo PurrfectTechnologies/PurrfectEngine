@@ -79,7 +79,11 @@
     "map": "cpp",
     "numeric": "cpp",
     "unordered_set": "cpp",
-    "valarray": "cpp"
+    "valarray": "cpp",
+    "deque": "cpp",
+    "regex": "cpp",
+    "variant": "cpp",
+    "*.def": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }

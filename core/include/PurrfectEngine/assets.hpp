@@ -46,21 +46,21 @@ namespace PurrfectEngine {
     virtual bool _save(purrAssetFile *file) = 0;
   };
 
-  class TextureAsset : purrAsset {
-  public:
-    TextureAsset(int width, int height, VkFormat format);
-    ~TextureAsset();
+  // class TextureAsset : purrAsset {
+  // public:
+  //   TextureAsset(int width, int height, VkFormat format);
+  //   ~TextureAsset();
 
-    bool load(const char *filename) override;
-    bool save(const char *filename) override;
+  //   bool load(const char *filename) override;
+  //   bool save(const char *filename) override;
 
-  protected:
-    bool _load(purrAssetFile file) override;
-    bool _save(purrAssetFile *file) override;
+  // protected:
+  //   bool _load(purrAssetFile file) override;
+  //   bool _save(purrAssetFile *file) override;
 
-  private:
-    purrTexture texture;
-  };
+  // private:
+  //   purrTexture texture;
+  // };
 
 }
 

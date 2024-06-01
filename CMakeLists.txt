@@ -14,5 +14,6 @@ add_subdirectory(dependencies/json)
 set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(dependencies/assimp)
 
+include_directories(dependencies/stb/)
 add_subdirectory(core)
 add_subdirectory(test)

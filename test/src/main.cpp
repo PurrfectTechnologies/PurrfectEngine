@@ -41,7 +41,7 @@ protected:
     { // Initialize object
       purrObject *object = new purrObject();
       purrMesh *mesh = new purrMesh();
-      mesh->initialize("../models/ico.obj");
+      mesh->initialize("../test/models/ico.obj");
       if (!mesh->isValid()) return false;
       object->addComponent(new purrMeshComp(mesh));
       object->getTransform()->setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
@@ -73,7 +73,7 @@ private:
     mScenePipeline = new purrPipeline();
     mScenePipeline->initialize({
       width, height,
-      { {VK_SHADER_STAGE_VERTEX_BIT, "../shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../shaders/frag.spv"} },
+      { {VK_SHADER_STAGE_VERTEX_BIT, "../test/shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../test/shaders/PBR/pbr.spv"} },
       &mSceneRenderTarget, nullptr, nullptr
     });
     SetFinalPipeline(mScenePipeline);

@@ -59,7 +59,7 @@ namespace PurrfectEngine {
     for (uint32_t i = 0; i < sImageCount; ++i) {
       fr::frImage *image = new fr::frImage();
       image->initialize(sContext->frRenderer, sContext->frSwapchain->getImage(i), fr::frImage::frImageInfo{
-        w, h, sContext->frSwapchain->format(),
+        w, h, 1, sContext->frSwapchain->format(),
         (VkImageUsageFlagBits)(0),
         false, 0
       });
@@ -69,7 +69,7 @@ namespace PurrfectEngine {
       sContext->frScImages[i] = image;
 
       fr::frFramebuffer *fb = new fr::frFramebuffer();
-      fb->initialize(sContext->frRenderer, w, h, sContext->frRenderPass, { sContext->frScImages[i] });
+      fb->initialize(sContext->frRenderer, w, h, 1, sContext->frRenderPass, { sContext->frScImages[i] });
       sprintf(buf, FRAMEBUFFER_NAME_FMT, i);
       fb->setName(sContext->frRenderer, buf);
       sContext->frFbs[i] = fb;
@@ -107,7 +107,7 @@ namespace PurrfectEngine {
 
     sContext->frSceneRenderPass = new fr::frRenderPass();
     sContext->frSceneRenderPass->addAttachment(VkAttachmentDescription{
-      0, sContext->frSceneFormat, (VkSampleCountFlagBits)sContext->frMsaa,
+      0, sContext->frHdrFormat, (VkSampleCountFlagBits)sContext->frMsaa,
       VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
       VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
       VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
@@ -264,6 +264,8 @@ namespace PurrfectEngine {
   void renderer::setContext(PurrfectEngineContext *context) {
     sContext = context;
     purrTexture::setContext(context);
+    purrCubemap::setContext(context);
+    purrSkybox::setContext(context);
     purrMesh::setContext(context);
     purrPipeline::setContext(context);
   }
@@ -304,13 +306,15 @@ namespace PurrfectEngine {
 
     createRenderPass();
 
-    sContext->frTextureLayout = new fr::frDescriptorLayout();
-    sContext->frTextureLayout->addBinding(VkDescriptorSetLayoutBinding{
-      0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-      VK_SHADER_STAGE_FRAGMENT_BIT,
-      VK_NULL_HANDLE
-    });
-    sContext->frTextureLayout->initialize(sContext->frRenderer);
+    {
+      sContext->frTextureLayout = new fr::frDescriptorLayout();
+      sContext->frTextureLayout->addBinding(VkDescriptorSetLayoutBinding{
+        0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+        VK_SHADER_STAGE_FRAGMENT_BIT,
+        VK_NULL_HANDLE
+      });
+      sContext->frTextureLayout->initialize(sContext->frRenderer);
+    }
 
     sContext->frUboLayout = new fr::frDescriptorLayout();
     sContext->frUboLayout->addBinding(VkDescriptorSetLayoutBinding{
@@ -328,6 +332,14 @@ namespace PurrfectEngine {
     });
     sContext->frStorageBufLayout->initialize(sContext->frRenderer);
 
+    sContext->frSkyboxLayout = new fr::frDescriptorLayout();
+    sContext->frSkyboxLayout->addBinding(VkDescriptorSetLayoutBinding{
+      0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
+      VK_SHADER_STAGE_FRAGMENT_BIT,
+      VK_NULL_HANDLE
+    });
+    sContext->frSkyboxLayout->initialize(sContext->frRenderer);
+
     createSwapchainPipeline();
 
     createSwapchainObjects();
@@ -340,12 +352,17 @@ namespace PurrfectEngine {
     sContext->frDescriptors = new fr::frDescriptors();
     sContext->frDescriptors->initialize(sContext->frRenderer, {
       { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
-      { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 },
+      { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 }, // 0: model matrices, 1: lights
     });
 
     sContext->frTextureDescriptors = new fr::frDescriptors();
     sContext->frTextureDescriptors->initialize(sContext->frRenderer, {
       { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2048 },
+    });
+
+    sContext->frSkyboxDescriptors = new fr::frDescriptors();
+    sContext->frSkyboxDescriptors->initialize(sContext->frRenderer, {
+      { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3*64 }, // 3 * 64 (max skybox count.)
     });
 
     for (size_t i = 0; i < sImageCount; ++i) {
@@ -355,7 +372,7 @@ namespace PurrfectEngine {
     }
 
     sContext->frDepthFormat = sContext->frRenderer->FindSupportedFormat({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    sContext->frSceneFormat = sContext->frRenderer->FindSupportedFormat({VK_FORMAT_R64G64B64A64_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R16G16B16A16_SFLOAT}, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
+    sContext->frHdrFormat = sContext->frRenderer->FindSupportedFormat({VK_FORMAT_R64G64B64A64_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R16G16B16A16_SFLOAT}, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
    
     createScenePass();
   }
@@ -572,7 +589,9 @@ namespace PurrfectEngine {
     delete sContext->frCommands;
     delete sContext->frDescriptors;
     delete sContext->frTextureDescriptors;
+    delete sContext->frSkyboxDescriptors;
     delete sContext->frTextureLayout;
+    delete sContext->frSkyboxLayout;
     delete sContext->frUboLayout;
     delete sContext->frStorageBufLayout;
     for (auto sync: sSynchronizations) delete sync;

@@ -14,17 +14,17 @@ namespace PurrfectEngine {
   }
 
   void purrPipeline::initialize(purrPipelineCreateInfo createInfo) {
-    mColorTexture = new purrTexture(createInfo.width, createInfo.height, sContext->frSceneFormat);
-    mColorTexture->initialize((createInfo.sampler?createInfo.sampler:purrSampler::getDefault()), false);
+    mColorTexture = new purrTexture(createInfo.width, createInfo.height, sContext->frHdrFormat);
+    mColorTexture->initialize(nullptr, (createInfo.sampler?createInfo.sampler:purrSampler::getDefault()), false);
 
     mDepthTexture = new purrTexture(createInfo.width, createInfo.height, sContext->frDepthFormat);
-    mDepthTexture->initialize(nullptr, false, false);
+    mDepthTexture->initialize(nullptr, nullptr, false, false);
 
     if (createInfo.colorTarget) *createInfo.colorTarget = mColorTexture;
     if (createInfo.depthTarget) *createInfo.depthTarget = mDepthTexture;
 
     mFramebuffer = new fr::frFramebuffer();
-    mFramebuffer->initialize(sContext->frRenderer, createInfo.width, createInfo.height, sContext->frSceneRenderPass, { mColorTexture->getImage(), mDepthTexture->getImage() });
+    mFramebuffer->initialize(sContext->frRenderer, createInfo.width, createInfo.height, 1, sContext->frSceneRenderPass, { mColorTexture->getImage(), mDepthTexture->getImage() });
 
     {
       mPipeline = new fr::frPipeline();
@@ -84,6 +84,11 @@ namespace PurrfectEngine {
 
       mPipeline->addDescriptor(sContext->frUboLayout);
       mPipeline->addDescriptor(sContext->frStorageBufLayout);
+      mPipeline->addDescriptor(sContext->frStorageBufLayout);
+      mPipeline->addDescriptor(sContext->frSkyboxLayout);
+      mPipeline->addDescriptor(sContext->frTextureLayout);
+      mPipeline->addDescriptor(sContext->frTextureLayout);
+      mPipeline->addDescriptor(sContext->frTextureLayout);
       mPipeline->addPushConstant(VkPushConstantRange{
         VK_SHADER_STAGE_VERTEX_BIT,
         0, sizeof(uint32_t)

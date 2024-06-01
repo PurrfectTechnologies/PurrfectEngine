@@ -26,19 +26,18 @@ namespace PurrfectEngine {
     ~purrTexture();
 
     // if (!sampler) mDescriptor = nullptr;
-    void initialize(purrSampler *sampler = purrSampler::getDefault(), bool mipmaps = true, bool color = true);
+    void initialize(const char *filename = nullptr, purrSampler *sampler = purrSampler::getDefault(), bool mipmaps = true, bool color = true);
     void cleanup();
     void resize(int width, int height);
 
     void setPixels(std::vector<uint8_t> pixels);
     void setPixels(uint8_t *pixels, size_t size);
-    void getPixels(std::vector<uint8_t>& pixels, size_t& size) const;
 
     static void setContext(PurrfectEngineContext *context);
   public:
     fr::frImage *getImage() const { return mImage; }
-
     fr::frDescriptor *getDescriptor() const { return mDescriptor; }
+    void getSize(int *w, int *h) const { *w = mWidth; *h = mHeight; }
   private:
     int mWidth = 0, mHeight = 0;
     VkFormat mFormat = VK_FORMAT_UNDEFINED;

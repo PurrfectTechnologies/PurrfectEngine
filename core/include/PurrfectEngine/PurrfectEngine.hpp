@@ -5,7 +5,6 @@
 #include "PurrfectEngine/transform.hpp"
 #include "PurrfectEngine/camera.hpp"
 #include "PurrfectEngine/scene.hpp"
-#include "PurrfectEngine/assets.hpp"
 namespace PurrfectEngine {
 
   enum class MSAA {
@@ -31,11 +30,13 @@ namespace PurrfectEngine {
     fr::frCommands                 *frCommands = nullptr;
     fr::frDescriptors              *frDescriptors = nullptr;
     fr::frDescriptors              *frTextureDescriptors = nullptr;
+    fr::frDescriptors              *frSkyboxDescriptors = nullptr;
     fr::frDescriptorLayout         *frTextureLayout = nullptr;
+    fr::frDescriptorLayout         *frSkyboxLayout = nullptr;
     fr::frDescriptorLayout         *frUboLayout = nullptr;
     fr::frDescriptorLayout         *frStorageBufLayout = nullptr;
     VkCommandBuffer                 frActiveCmdBuf = VK_NULL_HANDLE;
-    VkFormat                        frSceneFormat = VK_FORMAT_UNDEFINED;
+    VkFormat                        frHdrFormat = VK_FORMAT_UNDEFINED;
     VkFormat                        frDepthFormat = VK_FORMAT_UNDEFINED;
 
     purrScene *activeScene = nullptr;
@@ -44,6 +45,7 @@ namespace PurrfectEngine {
 }
 
 #include "PurrfectEngine/renderer.hpp"
+#include "PurrfectEngine/assets.hpp"
 #include "PurrfectEngine/input.hpp"
 #include "PurrfectEngine/app.hpp"
 
