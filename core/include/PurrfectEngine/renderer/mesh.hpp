@@ -12,6 +12,7 @@ namespace PurrfectEngine {
     void initialize(fr::frCommands *commands, std::vector<Vertex3D> vertices, std::vector<uint32_t> indices);
     void cleanup();
 
+    bool bind(VkCommandBuffer cmdBuf);
     void render(VkCommandBuffer cmdBuf);
 
     bool isValid() const { return mValid; }
@@ -19,8 +20,11 @@ namespace PurrfectEngine {
     static void setContext(PurrfectEngineContext *context);
 
     static purrMesh *getSquareMesh();
+    static purrMesh *getCubeMesh();
 
     static void cleanupAll();
+  public:
+    size_t getIndexCount() const { return mIndexCount; }
   private:
     bool mValid = false;
 

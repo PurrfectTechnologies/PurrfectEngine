@@ -26,9 +26,10 @@ public:
   }
 
   virtual void render(float dt) override {
-    mScenePipeline->begin({{{0.0f, 0.0f, 0.0f, 1.0f}}}); {
-      renderer::renderScene(mScenePipeline);
-    } mScenePipeline->end();
+    mScenePipeline->begin();
+    mScenePipeline->bind();
+    // renderer::renderScene(mScenePipeline);
+    mScenePipeline->end();
   }
 
   virtual void resize() override {
@@ -59,7 +60,6 @@ protected:
 
     glm::ivec2 size = GetSize();
     createSceneObjects(size.x, size.y);
-    SetFinalPipeline(mScenePipeline);
 
     return true;
   }
@@ -74,7 +74,6 @@ private:
     mScenePipeline->initialize({
       width, height,
       { {VK_SHADER_STAGE_VERTEX_BIT, "../test/shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../test/shaders/PBR/pbr.spv"} },
-      &mSceneRenderTarget, nullptr, nullptr
     });
     SetFinalPipeline(mScenePipeline);
   }
@@ -90,7 +89,8 @@ private:
 private:
   purrScene    *mScene = nullptr;
   purrPipeline *mScenePipeline = nullptr;
-  purrTexture  *mSceneRenderTarget = nullptr;
+
+  purrSkybox *mSkybox = nullptr;
 };
 
 purrApp *PurrfectEngine::CreateApp() {

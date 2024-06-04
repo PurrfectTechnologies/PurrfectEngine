@@ -1,5 +1,7 @@
 #include "PurrfectEngine/PurrfectEngine.hpp"
 
+#include <array>
+
 namespace PurrfectEngine {
 
   static PurrfectEngineContext *sContext = nullptr;

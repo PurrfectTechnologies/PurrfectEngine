@@ -111,6 +111,7 @@ namespace PurrfectEngine {
 }
 
 #include "PurrfectEngine/renderer/texture.hpp"
+#include "PurrfectEngine/renderer/renderTarget.hpp"
 #include "PurrfectEngine/renderer/cubemap.hpp"
 #include "PurrfectEngine/renderer/skybox.hpp"
 #include "PurrfectEngine/renderer/mesh.hpp"

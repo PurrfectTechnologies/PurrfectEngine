@@ -27,11 +27,14 @@ namespace PurrfectEngine {
 
     // if (!sampler) mDescriptor = nullptr;
     void initialize(const char *filename = nullptr, purrSampler *sampler = purrSampler::getDefault(), bool mipmaps = true, bool color = true);
+    void initializeHdr(const char *filename, purrSampler *sampler = purrSampler::getDefault(), bool mipmaps = true);
     void cleanup();
     void resize(int width, int height);
 
     void setPixels(std::vector<uint8_t> pixels);
     void setPixels(uint8_t *pixels, size_t size);
+
+    bool isValid() const { return mWidth > 0; }
 
     static void setContext(PurrfectEngineContext *context);
   public:
@@ -39,7 +42,13 @@ namespace PurrfectEngine {
     fr::frDescriptor *getDescriptor() const { return mDescriptor; }
     void getSize(int *w, int *h) const { *w = mWidth; *h = mHeight; }
   private:
-    int mWidth = 0, mHeight = 0;
+    void invalidate() { if (mWidth > 0) mWidth *= -1; }
+    void initializeImage();
+    void initializeFromPixels(std::vector<uint8_t> pixels);
+    void initializeFromPixelsHdr(std::vector<float> pixels);
+  private:
+    int mWidth = 0;
+    int mHeight = 0;
     VkFormat mFormat = VK_FORMAT_UNDEFINED;
     bool mMipmaps = true;
     bool mColor = true;

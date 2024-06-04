@@ -264,6 +264,7 @@ namespace PurrfectEngine {
   void renderer::setContext(PurrfectEngineContext *context) {
     sContext = context;
     purrTexture::setContext(context);
+    purrRenderTarget::setContext(context);
     purrCubemap::setContext(context);
     purrSkybox::setContext(context);
     purrMesh::setContext(context);
@@ -319,7 +320,7 @@ namespace PurrfectEngine {
     sContext->frUboLayout = new fr::frDescriptorLayout();
     sContext->frUboLayout->addBinding(VkDescriptorSetLayoutBinding{
       0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-      VK_SHADER_STAGE_VERTEX_BIT,
+      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
       VK_NULL_HANDLE
     });
     sContext->frUboLayout->initialize(sContext->frRenderer);
@@ -327,7 +328,7 @@ namespace PurrfectEngine {
     sContext->frStorageBufLayout = new fr::frDescriptorLayout();
     sContext->frStorageBufLayout->addBinding(VkDescriptorSetLayoutBinding{
       0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-      VK_SHADER_STAGE_VERTEX_BIT,
+      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
       VK_NULL_HANDLE
     });
     sContext->frStorageBufLayout->initialize(sContext->frRenderer);
@@ -546,6 +547,8 @@ namespace PurrfectEngine {
   }
 
   bool renderer::present() {
+    auto ctx = sContext;
+
     fr::frCommands::end(sCmdBufs[sFrame]);
     (*sContext).frActiveCmdBuf = VK_NULL_HANDLE;
     fr::frCommands::submit(sContext->frRenderer, sCmdBufs[sFrame], sSynchronizations[sFrame]);

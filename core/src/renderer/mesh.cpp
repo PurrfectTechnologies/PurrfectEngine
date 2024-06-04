@@ -74,6 +74,7 @@ namespace PurrfectEngine {
   PurrfectEngineContext *sContext = nullptr;
 
   static purrMesh *sSquareMesh = nullptr;
+  static purrMesh *sCubeMesh = nullptr;
 
   purrMesh::purrMesh():
     mValid(false)
@@ -146,12 +147,18 @@ namespace PurrfectEngine {
     mValid = false;
   }
 
-  void purrMesh::render(VkCommandBuffer cmdBuf) {
-    if (!mValid) return;
+  bool purrMesh::bind(VkCommandBuffer cmdBuf) {
+    if (!mValid) return false; // TODO: Handle
     VkDeviceSize offsets[] = {0};
     VkBuffer vbufs[] = { mVertexBuffer->get() };
     vkCmdBindVertexBuffers(cmdBuf, 0, 1, vbufs, offsets);
     vkCmdBindIndexBuffer(cmdBuf, mIndexBuffer->get(), 0, VK_INDEX_TYPE_UINT32);
+    return true;
+  }
+
+  void purrMesh::render(VkCommandBuffer cmdBuf) {
+    if (!bind(cmdBuf))
+      return;
     vkCmdDrawIndexed(cmdBuf, mIndexCount, 1, 0, 0, 0);
   }
 
@@ -174,6 +181,84 @@ namespace PurrfectEngine {
       );
     }
     return sSquareMesh;
+  }
+
+  purrMesh *purrMesh::getCubeMesh() {
+    if (!sCubeMesh) {
+      const float length = 1.0f;
+      const float width = 1.0f;
+      const float height = 1.0f;
+
+      const float hLength = length * 0.5f;
+      const float hWidth  = width  * 0.5f;
+      const float hHeight = height * 0.5f;
+
+      glm::vec3 p0 = glm::vec3(-1.0f*hWidth,  1.0f*hHeight, -1.0f*hLength);
+      glm::vec3 p1 = glm::vec3(-1.0f*hWidth,  1.0f*hHeight,  1.0f*hLength);
+      glm::vec3 p2 = glm::vec3(-1.0f*hWidth, -1.0f*hHeight,  1.0f*hLength);
+      glm::vec3 p3 = glm::vec3(-1.0f*hWidth, -1.0f*hHeight, -1.0f*hLength);
+      glm::vec3 p4 = glm::vec3( 1.0f*hWidth,  1.0f*hHeight, -1.0f*hLength);
+      glm::vec3 p5 = glm::vec3( 1.0f*hWidth,  1.0f*hHeight,  1.0f*hLength);
+      glm::vec3 p6 = glm::vec3( 1.0f*hWidth, -1.0f*hHeight,  1.0f*hLength);
+      glm::vec3 p7 = glm::vec3( 1.0f*hWidth, -1.0f*hHeight, -1.0f*hLength);
+
+      std::vector<Vertex3D> vertices = {
+        {p0, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p1, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p2, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p3, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p7, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p4, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p0, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p3, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p4, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p5, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p1, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p0, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p6, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p7, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p3, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p2, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p5, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p6, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p2, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p1, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p7, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p6, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p5, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+        {p4, {1.0f,1.0f,1.0f}, {}, {0.0f,0.0f,0.0f}},
+      };
+
+      { // Generate uvs
+        glm::vec2 uv00 = glm::vec2(0.0f, 0.0f);
+        glm::vec2 uv10 = glm::vec2(1.0f, 0.0f);
+        glm::vec2 uv01 = glm::vec2(0.0f, 1.0f);
+        glm::vec2 uv11 = glm::vec2(1.0f, 1.0f);
+        for (size_t i = 0; i < 6; ++i) {
+          vertices[i*4+0].uv = uv11;
+          vertices[i*4+1].uv = uv01;
+          vertices[i*4+2].uv = uv00;
+          vertices[i*4+3].uv = uv10;
+        }
+      }
+
+      std::vector<uint32_t> indices{};
+      for (size_t i = 0; i < 6; ++i) {
+        indices.push_back(i*4);
+        indices.push_back(i*4+1);
+        indices.push_back(i*4+3);
+        indices.push_back(i*4+1);
+        indices.push_back(i*4+2);
+        indices.push_back(i*4+3);
+      }
+
+      sCubeMesh = new purrMesh();
+      sCubeMesh->initialize(
+        sContext->frCommands,
+        vertices, indices
+      );
+    }
+    return sCubeMesh;
   }
 
   void purrMesh::cleanupAll() {

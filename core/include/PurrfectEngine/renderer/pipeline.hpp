@@ -9,9 +9,6 @@ namespace PurrfectEngine {
     int width;
     int height;
     std::unordered_map<VkShaderStageFlagBits, const char *> shaders;
-    purrTexture **colorTarget;
-    purrTexture **depthTarget;
-    purrSampler  *sampler;
   };
 
   class purrPipeline {
@@ -22,9 +19,8 @@ namespace PurrfectEngine {
     void initialize(purrPipelineCreateInfo createInfo);
     void cleanup();
 
-    // Binds render pass and pipeline, ready for rendering.
-    // WARNING: There must be an active command buffer in the PurrfectEngineContext.
-    void begin(VkClearValue clearColor);
+    void begin();
+    void bind();
     void end();
 
     static void setContext(PurrfectEngineContext *context);

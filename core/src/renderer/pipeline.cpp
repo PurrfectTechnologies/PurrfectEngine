@@ -15,13 +15,10 @@ namespace PurrfectEngine {
 
   void purrPipeline::initialize(purrPipelineCreateInfo createInfo) {
     mColorTexture = new purrTexture(createInfo.width, createInfo.height, sContext->frHdrFormat);
-    mColorTexture->initialize(nullptr, (createInfo.sampler?createInfo.sampler:purrSampler::getDefault()), false);
+    mColorTexture->initialize(nullptr, purrSampler::getDefault(), false);
 
     mDepthTexture = new purrTexture(createInfo.width, createInfo.height, sContext->frDepthFormat);
     mDepthTexture->initialize(nullptr, nullptr, false, false);
-
-    if (createInfo.colorTarget) *createInfo.colorTarget = mColorTexture;
-    if (createInfo.depthTarget) *createInfo.depthTarget = mDepthTexture;
 
     mFramebuffer = new fr::frFramebuffer();
     mFramebuffer->initialize(sContext->frRenderer, createInfo.width, createInfo.height, 1, sContext->frSceneRenderPass, { mColorTexture->getImage(), mDepthTexture->getImage() });
@@ -123,14 +120,16 @@ namespace PurrfectEngine {
     delete mPipeline;
   }
 
-  void purrPipeline::begin(VkClearValue clearColor) {
-    std::vector<VkClearValue> clearValues = {clearColor, {{1.0f, 0}}};
-    sContext->frSceneRenderPass->begin(sContext->frActiveCmdBuf, VkExtent2D{static_cast<uint32_t>(mWidth), static_cast<uint32_t>(mHeight)}, mFramebuffer, clearValues);
+  void purrPipeline::begin() {
+    sContext->frSceneRenderPass->begin(sContext->frActiveCmdBuf, VkExtent2D{static_cast<uint32_t>(mWidth), static_cast<uint32_t>(mHeight)}, mFramebuffer, {{{{0.0f,0.0f,0.0f,1.0f}}}, {{1.0f, 0}}});
+  }
+
+  void purrPipeline::bind() {
     mPipeline->bind(sContext->frActiveCmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS);
     renderer::bindCamera(mPipeline);
     renderer::bindTransforms(mPipeline);
   }
-
+  
   void purrPipeline::end() {
     sContext->frSceneRenderPass->end(sContext->frActiveCmdBuf);
   }
