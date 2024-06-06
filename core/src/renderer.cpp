@@ -362,7 +362,7 @@ namespace PurrfectEngine {
     sContext->frSkyboxDescriptors = new fr::frDescriptors();
     sContext->frSkyboxDescriptors->initialize(sContext->frRenderer, {
       { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3*64 }, // 3 * 64 (max skybox count.)
-      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 6 }
     });
 
     for (size_t i = 0; i < sImageCount; ++i) {

@@ -27,7 +27,7 @@ namespace PurrfectEngine {
 
     // if (!sampler) mDescriptor = nullptr;
     bool initialize(const char *filename = nullptr, purrSampler *sampler = purrSampler::getDefault(), bool mipmaps = true, bool color = true);
-    bool initializeHdr(const char *filename, purrSampler *sampler = purrSampler::getDefault(), bool mipmaps = true);
+    bool initializeHdr(const char *filename, int channels, purrSampler *sampler = purrSampler::getDefault(), bool mipmaps = true);
     void cleanup();
     void resize(int width, int height);
 

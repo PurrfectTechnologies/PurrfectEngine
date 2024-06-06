@@ -72,7 +72,7 @@ namespace PurrfectEngine {
     return true;
   }
 
-  bool purrTexture::initializeHdr(const char *filename, purrSampler *sampler, bool mipmaps) {
+  bool purrTexture::initializeHdr(const char *filename, int channels, purrSampler *sampler, bool mipmaps) {
     if (!filename) return false;
 
     mColor = true;
@@ -80,9 +80,12 @@ namespace PurrfectEngine {
     mSampler = sampler;
 
     int c;
-    float *data = stbi_loadf(filename, &mWidth, &mHeight, &c, STBI_rgb_alpha);
+    float *data = stbi_loadf(filename, &mWidth, &mHeight, &c, channels);
     if (!data) return false;
-    if (!initializeImage(std::vector<float>(data, data+(mWidth*mHeight*4)))) return false;
+    size_t vecSize = mWidth*mHeight*channels*sizeof(float);
+    std::vector<float> vec(vecSize);
+    memcpy(vec.data(), data, vecSize);
+    if (!initializeImage(vec)) return false;
     stbi_image_free(data);
     return true;
   }
@@ -118,7 +121,7 @@ namespace PurrfectEngine {
       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
       0, VK_ACCESS_TRANSFER_WRITE_BIT
     });
-    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer);
+    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer, 0);
     if (mMipmaps) mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
     else mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -146,7 +149,7 @@ namespace PurrfectEngine {
       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
       0, VK_ACCESS_TRANSFER_WRITE_BIT
     });
-    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer);
+    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer, 0);
     mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
   }
 
@@ -190,10 +193,10 @@ namespace PurrfectEngine {
 
         fr::frBuffer *stagingBuf = new fr::frBuffer();
         stagingBuf->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
-          static_cast<uint32_t>(mWidth * mHeight * 4 * sizeof(T)), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
+          static_cast<uint32_t>(pixels.size()*sizeof(T)), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
         });
-        stagingBuf->copyData(0, mWidth*mHeight*4*sizeof(T), pixels.data());
-        mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuf);
+        stagingBuf->copyData(0, pixels.size()*sizeof(T), pixels.data());
+        mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuf, 0);
         delete stagingBuf;
         if (mMipmaps) mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
         else {

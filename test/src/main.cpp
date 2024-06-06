@@ -63,13 +63,13 @@ protected:
 
     { // Initialize skybox
       const char *const filepath = "../test/textures/skybox.hdr";
-      purrTexture *texture = new purrTexture(0, 0, VK_FORMAT_R16G16B16A16_SFLOAT);
-      if (!texture->initializeHdr(filepath)) {
+      purrTexture *texture = new purrTexture(0, 0, VK_FORMAT_R32G32B32A32_SFLOAT);
+      if (!texture->initializeHdr(filepath, 4)) {
         printf("Failed to load skybox texture (%s)\n", filepath);
         return false;
       }
       mSkybox = new purrSkybox();
-      if (!mSkybox->initialize(texture, 1024, 2048)) {
+      if (!mSkybox->initialize(texture, 2048, 2048)) {
         printf("Failed to init skybox\n");
         return false;
       }

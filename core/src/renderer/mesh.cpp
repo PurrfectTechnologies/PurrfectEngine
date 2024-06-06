@@ -245,11 +245,11 @@ namespace PurrfectEngine {
       std::vector<uint32_t> indices{};
       for (size_t i = 0; i < 6; ++i) {
         indices.push_back(i*4);
-        indices.push_back(i*4+1);
-        indices.push_back(i*4+3);
-        indices.push_back(i*4+1);
         indices.push_back(i*4+2);
+        indices.push_back(i*4+1);
+        indices.push_back(i*4);
         indices.push_back(i*4+3);
+        indices.push_back(i*4+2);
       }
 
       sCubeMesh = new purrMesh();

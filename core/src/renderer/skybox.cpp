@@ -47,8 +47,6 @@ namespace PurrfectEngine {
       colors[i] = targets[i]->getColorTarget();
     }
 
-    VkCommandBuffer cmdBuf = sContext->frCommands->beginSingleTime();
-
     purrMesh *cube = purrMesh::getCubeMesh();
 
     fr::frPipeline *rectToCubemapPipeline = nullptr;
@@ -124,70 +122,65 @@ namespace PurrfectEngine {
       delete fragShdr;
     }
 
-    static fr::frDescriptor *sCameraDesc = nullptr;
-    sCameraDesc = sContext->frSkyboxDescriptors->allocate(1, sContext->frUboLayout)[0];
-
-    purrCamera *camera = new purrCamera(new purrTransform());
-    camera->setSettings(purrCamera::Settings{90.0f, 1.0f});
-
-    fr::frBuffer *buffer = new fr::frBuffer();
-    buffer->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
-      sizeof(glm::mat4)*2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, {}
-    });
-
-    VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = buffer->get();
-    bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(glm::mat4)*2;
-
     struct {
       glm::mat4 proj;
       glm::mat4 view;
     } camData;
-    camData.proj = camera->getProjection();
+    camData.proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 
-    sCameraDesc->update(fr::frDescriptor::frDescriptorWriteInfo{
-      0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_NULL_HANDLE, &bufferInfo, VK_NULL_HANDLE
-    });
+    std::vector<fr::frBuffer*> camBufs(6);
+    std::vector<fr::frDescriptor*> camDescs(6);
 
-    size_t i = 0;
-    for (purrRenderTarget *target: targets) {
+    for (size_t i = 0; i < 6; ++i) {
       glm::vec3 rot = glm::vec3(0.0f);
       switch (i) {
-      case 0: { rot = glm::vec3(  0.0f,  90.0f, 0.0f); } break;
-      case 1: { rot = glm::vec3(  0.0f, 270.0f, 0.0f); } break;
-      case 2: { rot = glm::vec3(-90.0f,   0.0f, 0.0f); } break;
-      case 3: { rot = glm::vec3( 90.0f,   0.0f, 0.0f); } break;
-      case 4: { rot = glm::vec3(  0.0f,   0.0f, 0.0f); } break;
-      case 5: { rot = glm::vec3(  0.0f, 180.0f, 0.0f); } break;
+      case 0: { camData.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)); } break;
+      case 1: { camData.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)); } break;
+      case 2: { camData.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)); } break;
+      case 3: { camData.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)); } break;
+      case 4: { camData.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)); } break;
+      case 5: { camData.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f)); } break;
       default: { return nullptr; }
       }
-      camera->getTransform()->setRotation(glm::quat(rot));
-      camData.view = camera->getView();
 
-      buffer->copyData(0, sizeof(glm::mat4)*2, (void*)&camData);
+      camBufs[i] = new fr::frBuffer();
+      camBufs[i]->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
+        sizeof(glm::mat4)*2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, {}
+      });
+      camBufs[i]->copyData(0, sizeof(glm::mat4)*2, (void*)&camData);
 
-      target->begin(cmdBuf);
-      rectToCubemapPipeline->bind(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS);
-      rectToCubemapPipeline->bindDescriptor(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, sCameraDesc);
-      rectToCubemapPipeline->bindDescriptor(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, 1, texture->getDescriptor());
-      cube->bind(cmdBuf);
-      vkCmdDrawIndexed(cmdBuf, cube->getIndexCount(), 1, 0, 0, 0);
-      target->end(cmdBuf);
+      camDescs[i] = sContext->frSkyboxDescriptors->allocate(1, sContext->frUboLayout)[0];
+      VkDescriptorBufferInfo bufferInfo = {};
+      bufferInfo.buffer = camBufs[i]->get();
+      bufferInfo.offset = 0;
+      bufferInfo.range = sizeof(glm::mat4)*2;
+      camDescs[i]->update(fr::frDescriptor::frDescriptorWriteInfo{
+        0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_NULL_HANDLE, &bufferInfo, VK_NULL_HANDLE
+      });
     }
 
-    delete camera;
+    VkCommandBuffer cmdBuf = sContext->frCommands->beginSingleTime(); {
+      size_t i = 0;
+      for (purrRenderTarget *target: targets) {
+        target->begin(cmdBuf);
+        rectToCubemapPipeline->bind(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS);
+        rectToCubemapPipeline->bindDescriptor(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, camDescs[i++]);
+        rectToCubemapPipeline->bindDescriptor(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, 1, texture->getDescriptor());
+        cube->bind(cmdBuf);
+        vkCmdDrawIndexed(cmdBuf, cube->getIndexCount(), 1, 0, 0, 0);
+        target->end(cmdBuf);
+      }
+    } sContext->frCommands->endSingleTime(sContext->frRenderer, cmdBuf);
 
     purrCubemap *cubemap = new purrCubemap();
     cubemap->initialize(colors, sContext->frHdrFormat);
 
-    sContext->frCommands->endSingleTime(sContext->frRenderer, cmdBuf);
-
     for (purrRenderTarget *target: targets) delete target;
     delete rectToCubemapPipeline;
-    delete buffer;
-    delete sCameraDesc;
+
+    for (fr::frBuffer *buf: camBufs) delete buf;
+    for (fr::frDescriptor *desc: camDescs) delete desc;
 
     return cubemap;
   }
