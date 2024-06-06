@@ -9,7 +9,7 @@ namespace PurrfectEngine {
     purrCubemap();
     ~purrCubemap();
 
-    bool initialize(std::array<purrTexture *,6> textures, purrSampler *sampler = purrSampler::getDefault());
+    bool initialize(std::array<purrTexture *,6> textures, VkFormat format, purrSampler *sampler = purrSampler::getDefault());
     void cleanup();
 
     static void setContext(PurrfectEngineContext *context);

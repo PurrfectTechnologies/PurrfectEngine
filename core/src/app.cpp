@@ -68,10 +68,6 @@ namespace PurrfectEngine {
     renderer::setScene(scene);
   }
 
-  void purrApp::SetFinalPipeline(purrPipeline *pipeline) {
-    renderer::setScenePipeline(pipeline);
-  }
-
   glm::ivec2 purrApp::GetSize() {
     int w, h;
     renderer::getSwapchainSize(&w, &h);

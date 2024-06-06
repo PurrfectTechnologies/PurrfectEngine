@@ -8,8 +8,8 @@ namespace PurrfectEngine {
     purrSkybox();
     ~purrSkybox();
 
-    void initialize(purrTexture *texture, int width, int height);
-    void initialize(purrCubemap *cubemap);
+    bool initialize(purrTexture *texture, int width, int height);
+    bool initialize(purrCubemap *cubemap);
     void cleanup();
 
     void bind(VkCommandBuffer cmdBuf, fr::frPipeline *pipeline);

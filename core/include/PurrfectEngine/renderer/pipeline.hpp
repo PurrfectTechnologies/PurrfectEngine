@@ -6,8 +6,7 @@
 namespace PurrfectEngine {
 
   struct purrPipelineCreateInfo {
-    int width;
-    int height;
+    int width, height;
     std::unordered_map<VkShaderStageFlagBits, const char *> shaders;
   };
 
@@ -19,26 +18,15 @@ namespace PurrfectEngine {
     void initialize(purrPipelineCreateInfo createInfo);
     void cleanup();
 
-    void begin();
     void bind();
-    void end();
 
     static void setContext(PurrfectEngineContext *context);
   public:
     fr::frPipeline *get() const { return mPipeline; }
-
-    purrTexture *getColor() const { return mColorTexture; }
-    purrTexture *getDepth() const { return mDepthTexture; }
   private:
     fr::frPipeline *mPipeline = nullptr;
 
-    purrTexture *mColorTexture = nullptr;
-    purrTexture *mDepthTexture = nullptr;
-
-    fr::frFramebuffer *mFramebuffer = nullptr;
-
     std::vector<fr::frShader*> mShaders{};
-    int mWidth, mHeight;
   };
 
 }

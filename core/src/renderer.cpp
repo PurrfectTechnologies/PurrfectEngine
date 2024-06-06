@@ -17,6 +17,7 @@ namespace PurrfectEngine {
   static uint32_t sImageIndex = 0;
 
   static fr::frDescriptor *sSceneDescriptor = nullptr;
+  static purrRenderTarget *sSceneRenderTarget = nullptr;
 
   static fr::frBuffer *sCameraBuffer = nullptr;
   static fr::frDescriptor *sCameraUBO = nullptr;
@@ -25,8 +26,6 @@ namespace PurrfectEngine {
   static uint32_t sTransformsBufCap = 0;
   static bool sTransformsBufDirty = true;
   static fr::frDescriptor *sTransformsDesc = nullptr;
-
-  static purrPipeline *sScenePipeline = nullptr;
 
   #define IMAGE_NAME_FMT "Swapchain Image %u"
   #define FRAMEBUFFER_NAME_FMT "Swapchain Framebuffer %u"
@@ -102,7 +101,6 @@ namespace PurrfectEngine {
 
   void createScenePass() {
     VkAttachmentReference colorRef = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
-
     VkAttachmentReference depthRef = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
 
     sContext->frSceneRenderPass = new fr::frRenderPass();
@@ -364,6 +362,7 @@ namespace PurrfectEngine {
     sContext->frSkyboxDescriptors = new fr::frDescriptors();
     sContext->frSkyboxDescriptors->initialize(sContext->frRenderer, {
       { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3*64 }, // 3 * 64 (max skybox count.)
+      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
     });
 
     for (size_t i = 0; i < sImageCount; ++i) {
@@ -382,10 +381,9 @@ namespace PurrfectEngine {
     sContext->frSwapchain->getSize(width, height);
   }
 
-  void renderer::setScenePipeline(purrPipeline *scenePipeline) {
-    sScenePipeline = scenePipeline;
-
-    sSceneDescriptor = sScenePipeline->getColor()->getDescriptor();
+  void renderer::setSceneTarget(purrRenderTarget *renderTarget) {
+    sSceneRenderTarget = renderTarget;
+    sSceneDescriptor = renderTarget->getColorTarget()->getDescriptor();
   }
 
   void renderer::updateCamera() {
@@ -496,6 +494,10 @@ namespace PurrfectEngine {
     pipeline->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 1, sTransformsDesc);
   }
 
+  void renderer::beginScenePass() {
+    sSceneRenderTarget->begin(sCmdBufs[sFrame]);
+  }
+
   void renderer::renderScene(purrPipeline *pipeline) {
     purrScene *scene = sContext->activeScene;
     if (!scene) return;
@@ -513,6 +515,10 @@ namespace PurrfectEngine {
       }
       ++idx;
     }
+  }
+
+  void renderer::endScenePass() {
+    sSceneRenderTarget->end(sCmdBufs[sFrame]);
   }
 
   void renderer::render() {

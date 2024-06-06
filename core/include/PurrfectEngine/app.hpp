@@ -19,7 +19,6 @@ namespace PurrfectEngine {
     virtual void cleanup() = 0;
   protected:
     void SetScene(purrScene *scene);
-    void SetFinalPipeline(purrPipeline *pipeline);
     glm::ivec2 GetSize();
   public:
     static purrApp *get() { return sInstance; }

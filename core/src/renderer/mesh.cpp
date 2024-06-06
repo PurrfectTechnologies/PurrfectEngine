@@ -263,6 +263,7 @@ namespace PurrfectEngine {
 
   void purrMesh::cleanupAll() {
     if (sSquareMesh) delete sSquareMesh;
+    if (sCubeMesh) delete sCubeMesh;
   }
 
   // 2D

@@ -79,6 +79,7 @@ namespace PurrfectEngine {
   };
 
   class purrPipeline;
+  class purrRenderTarget;
   namespace renderer {
     void setContext(PurrfectEngineContext *context);
     void setScene(purrScene *scene);
@@ -88,7 +89,7 @@ namespace PurrfectEngine {
     void initialize(std::string title, int width, int height);
 
     void getSwapchainSize(int *width, int *height);
-    void setScenePipeline(purrPipeline *scenePipeline);
+    void setSceneTarget(purrRenderTarget *renderTarget);
     void updateCamera();
     void updateTransforms();
 
@@ -96,7 +97,9 @@ namespace PurrfectEngine {
     bool renderBegin();
     void bindCamera(fr::frPipeline *pipeline);
     void bindTransforms(fr::frPipeline *pipeline);
+    void beginScenePass();
     void renderScene(purrPipeline *pipeline);
+    void endScenePass();
     void render();
     bool present();
     

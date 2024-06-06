@@ -26,10 +26,10 @@ public:
   }
 
   virtual void render(float dt) override {
-    mScenePipeline->begin();
+    renderer::beginScenePass();
     mScenePipeline->bind();
     // renderer::renderScene(mScenePipeline);
-    mScenePipeline->end();
+    renderer::endScenePass();
   }
 
   virtual void resize() override {
@@ -61,11 +61,27 @@ protected:
     glm::ivec2 size = GetSize();
     createSceneObjects(size.x, size.y);
 
+    { // Initialize skybox
+      const char *const filepath = "../test/textures/skybox.hdr";
+      purrTexture *texture = new purrTexture(0, 0, VK_FORMAT_R16G16B16A16_SFLOAT);
+      if (!texture->initializeHdr(filepath)) {
+        printf("Failed to load skybox texture (%s)\n", filepath);
+        return false;
+      }
+      mSkybox = new purrSkybox();
+      if (!mSkybox->initialize(texture, 1024, 2048)) {
+        printf("Failed to init skybox\n");
+        return false;
+      }
+      delete texture;
+    }
+
     return true;
   }
 
   virtual void cleanup() override {
     delete mScene;
+    delete mSkybox;
     cleanupSceneObjects();
   }
 private:
@@ -73,13 +89,18 @@ private:
     mScenePipeline = new purrPipeline();
     mScenePipeline->initialize({
       width, height,
-      { {VK_SHADER_STAGE_VERTEX_BIT, "../test/shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../test/shaders/PBR/pbr.spv"} },
+      { {VK_SHADER_STAGE_VERTEX_BIT, "../test/shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../test/shaders/PBR/pbr.spv"} }
     });
-    SetFinalPipeline(mScenePipeline);
+    
+    mSceneRenderTarget = new purrRenderTarget();
+    mSceneRenderTarget->initialize(glm::ivec2(width, height));
+
+    renderer::setSceneTarget(mSceneRenderTarget);
   }
 
   void cleanupSceneObjects() {
     delete mScenePipeline;
+    delete mSceneRenderTarget;
   }
 
   void recreateSceneObjects(int width, int height) {
@@ -89,6 +110,7 @@ private:
 private:
   purrScene    *mScene = nullptr;
   purrPipeline *mScenePipeline = nullptr;
+  purrRenderTarget *mSceneRenderTarget = nullptr;
 
   purrSkybox *mSkybox = nullptr;
 };

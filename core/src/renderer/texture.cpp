@@ -47,23 +47,19 @@ namespace PurrfectEngine {
     cleanup();
   }
 
-  void purrTexture::initialize(const char *filename, purrSampler *sampler, bool mipmaps, bool color) {
-    if (!isValid()) {
-      cleanup();
-      mWidth *= -1;
-    }
-
+  bool purrTexture::initialize(const char *filename, purrSampler *sampler, bool mipmaps, bool color) {
     mMipmaps = mipmaps;
     mColor = color;
     mSampler = sampler;
 
-    initializeImage();
     if (filename) {
-      int w, h, c;
+      int c;
       stbi_uc *data = stbi_load(filename, &mWidth, &mHeight, &c, STBI_rgb_alpha);
-      initializeFromPixels(std::vector<uint8_t>(data, data+(w*h*4)));
+      if (!data) return false;
+      if (!initializeImage(std::vector<uint8_t>(data, data+(mWidth*mHeight*4)))) return false;
       stbi_image_free(data);
     } else {
+      if (!initializeImage(std::vector<uint8_t>(0))) return false;
       mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -73,26 +69,22 @@ namespace PurrfectEngine {
         VK_ACCESS_SHADER_READ_BIT,
       });
     }
+    return true;
   }
 
-  void purrTexture::initializeHdr(const char *filename, purrSampler *sampler, bool mipmaps) {
-    if (!isValid()) {
-      cleanup();
-      mWidth *= -1;
-    }
-
-    if (!filename) { invalidate(); return; }
+  bool purrTexture::initializeHdr(const char *filename, purrSampler *sampler, bool mipmaps) {
+    if (!filename) return false;
 
     mColor = true;
     mMipmaps = mipmaps;
     mSampler = sampler;
 
-    initializeImage();
-
-    int w, h, c;
+    int c;
     float *data = stbi_loadf(filename, &mWidth, &mHeight, &c, STBI_rgb_alpha);
-    initializeFromPixelsHdr(std::vector<float>(data, data+(w*h*4)));
+    if (!data) return false;
+    if (!initializeImage(std::vector<float>(data, data+(mWidth*mHeight*4)))) return false;
     stbi_image_free(data);
+    return true;
   }
 
   void purrTexture::cleanup() {
@@ -126,7 +118,7 @@ namespace PurrfectEngine {
       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
       0, VK_ACCESS_TRANSFER_WRITE_BIT
     });
-    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer, bufferSize);
+    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer);
     if (mMipmaps) mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
     else mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -154,7 +146,7 @@ namespace PurrfectEngine {
       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
       0, VK_ACCESS_TRANSFER_WRITE_BIT
     });
-    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer, size);
+    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer);
     mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
   }
 
@@ -162,61 +154,73 @@ namespace PurrfectEngine {
     sContext = context;
   }
 
-  void purrTexture::initializeImage() {
+  template <typename T>
+  inline bool purrTexture::initializeImage(std::vector<T> pixels) {
     if (mImage) cleanup();
-    mImage = new fr::frImage();
-    mImage->initialize(sContext->frRenderer, fr::frImage::frImageInfo{
-      mWidth, mHeight, 1, mFormat,
-      (VkImageUsageFlagBits)((mColor?VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT:VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) | (mMipmaps ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : 0) | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
-      true, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      mColor?VK_IMAGE_ASPECT_COLOR_BIT:VK_IMAGE_ASPECT_DEPTH_BIT, mMipmaps
-    });
-
-    if (mSampler) {
-      VkDescriptorImageInfo imageInfo = {};
-      imageInfo.sampler = mSampler->mSampler->get();
-      imageInfo.imageView = mImage->getView();
-      imageInfo.imageLayout = mColor?VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-      mDescriptor = sContext->frTextureDescriptors->allocate(1, sContext->frTextureLayout)[0];
-      mDescriptor->update(fr::frDescriptor::frDescriptorWriteInfo{
-        0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        &imageInfo, VK_NULL_HANDLE, VK_NULL_HANDLE
+    try {
+      mImage = new fr::frImage();
+      mImage->initialize(sContext->frRenderer, fr::frImage::frImageInfo{
+        mWidth, mHeight, 1, mFormat,
+        (VkImageUsageFlagBits)((mColor?VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT:VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) | (mMipmaps ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : 0) | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
+        true, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        mColor?VK_IMAGE_ASPECT_COLOR_BIT:VK_IMAGE_ASPECT_DEPTH_BIT, mMipmaps
       });
+
+      if (mSampler) {
+        VkDescriptorImageInfo imageInfo = {};
+        imageInfo.sampler = mSampler->mSampler->get();
+        imageInfo.imageView = mImage->getView();
+        imageInfo.imageLayout = mColor?VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        mDescriptor = sContext->frTextureDescriptors->allocate(1, sContext->frTextureLayout)[0];
+        mDescriptor->update(fr::frDescriptor::frDescriptorWriteInfo{
+          0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          &imageInfo, VK_NULL_HANDLE, VK_NULL_HANDLE
+        });
+      }
+
+      if (pixels.size() > 0) { // Copy
+        mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
+          VK_IMAGE_LAYOUT_UNDEFINED,
+          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+          VK_PIPELINE_STAGE_TRANSFER_BIT,
+          0, VK_ACCESS_TRANSFER_WRITE_BIT,
+        });
+
+        fr::frBuffer *stagingBuf = new fr::frBuffer();
+        stagingBuf->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
+          static_cast<uint32_t>(mWidth * mHeight * 4 * sizeof(T)), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
+        });
+        stagingBuf->copyData(0, mWidth*mHeight*4*sizeof(T), pixels.data());
+        mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuf);
+        delete stagingBuf;
+        if (mMipmaps) mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
+        else {
+          mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT,
+          });
+        }
+      } else {
+        mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
+          VK_IMAGE_LAYOUT_UNDEFINED,
+          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+          0,
+          VK_ACCESS_SHADER_READ_BIT,
+        });
+      }
+    } catch (fr::frVulkanException &ex) {
+      return false;
     }
-  }
 
-  void purrTexture::initializeFromPixels(std::vector<uint8_t> pixels) {
-    mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
-      VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      0, VK_ACCESS_TRANSFER_WRITE_BIT,
-    });
-
-    fr::frBuffer *stagingBuf = new fr::frBuffer();
-    stagingBuf->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
-      static_cast<uint32_t>(mWidth * mHeight * 4), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
-    });
-    stagingBuf->copyData(0, mWidth*mHeight*4, pixels.data());
-    mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuf, mWidth*mHeight*4);
-    delete stagingBuf;
-    if (mMipmaps) mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
-    else {
-      mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_SHADER_READ_BIT,
-      });
-    }
-  }
-
-  void purrTexture::initializeFromPixelsHdr(std::vector<float> pixels) {
-
+    return true;
   }
 
 }

@@ -19,7 +19,9 @@ namespace PurrfectEngine {
     mDepthTarget->initialize(nullptr, nullptr, false, false);
 
     mFramebuffer = new fr::frFramebuffer();
-    mFramebuffer->initialize(sContext->frRenderer, size.x, size.y, 1, sContext->frRenderPass, { mColorTarget->getImage(), mDepthTarget->getImage() });
+    mFramebuffer->initialize(sContext->frRenderer, size.x, size.y, 1, sContext->frSceneRenderPass, { mColorTarget->getImage(), mDepthTarget->getImage() });
+    
+    mSize = size;
   }
 
   void purrRenderTarget::cleanup() {
