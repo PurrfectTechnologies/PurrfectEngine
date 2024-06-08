@@ -4,7 +4,8 @@ namespace PurrfectEngine {
 
   static PurrfectEngineContext *sContext = nullptr;
 
-  purrRenderTarget::purrRenderTarget()
+  purrRenderTarget::purrRenderTarget(fr::frCommands *commands):
+    mCommands(commands?commands:sContext->frCommands)
   {}
 
   purrRenderTarget::~purrRenderTarget() {
@@ -12,10 +13,10 @@ namespace PurrfectEngine {
   }
 
   void purrRenderTarget::initialize(glm::ivec2 size) {
-    mColorTarget = new purrTexture(size.x, size.y, sContext->frHdrFormat);
+    mColorTarget = new purrTexture(size.x, size.y, sContext->frHdrFormat, mCommands);
     mColorTarget->initialize(nullptr, purrSampler::getDefault(), false, true);
     
-    mDepthTarget = new purrTexture(size.x, size.y, sContext->frDepthFormat);
+    mDepthTarget = new purrTexture(size.x, size.y, sContext->frDepthFormat, mCommands);
     mDepthTarget->initialize(nullptr, nullptr, false, false);
 
     mFramebuffer = new fr::frFramebuffer();

@@ -17,24 +17,25 @@ public:
 
   virtual void update(float dt) override {
     int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
-    int z = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
+    int y = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
 
-    glm::vec3 pos = mScene->getCamera()->getTransform()->getPosition();
-    pos.x += x * dt;
-    pos.z += z * dt;
-    mScene->getCamera()->getTransform()->setPosition(pos);
+    glm::vec3 rot = glm::eulerAngles(mScene->getCamera()->getTransform()->getRotation());
+    rot.x -= y * dt;
+    rot.y -= x * dt;
+    mScene->getCamera()->getTransform()->setRotation(glm::quat(rot));
   }
 
   virtual void render(float dt) override {
     renderer::beginScenePass();
+    mSkybox->render(mSize.x, mSize.y);
     mScenePipeline->bind();
     // renderer::renderScene(mScenePipeline);
     renderer::endScenePass();
   }
 
   virtual void resize() override {
-    glm::ivec2 size = GetSize();
-    recreateSceneObjects(size.x, size.y);
+    mSize = GetSize();
+    recreateSceneObjects();
   }
 protected:
   virtual bool initialize() override {
@@ -58,8 +59,8 @@ protected:
 
     SetScene(mScene);
 
-    glm::ivec2 size = GetSize();
-    createSceneObjects(size.x, size.y);
+    mSize = GetSize();
+    createSceneObjects();
 
     { // Initialize skybox
       const char *const filepath = "../test/textures/skybox.hdr";
@@ -85,15 +86,15 @@ protected:
     cleanupSceneObjects();
   }
 private:
-  void createSceneObjects(int width, int height) {
+  void createSceneObjects() {
     mScenePipeline = new purrPipeline();
     mScenePipeline->initialize({
-      width, height,
+      mSize.x, mSize.y,
       { {VK_SHADER_STAGE_VERTEX_BIT, "../test/shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../test/shaders/PBR/pbr.spv"} }
     });
     
     mSceneRenderTarget = new purrRenderTarget();
-    mSceneRenderTarget->initialize(glm::ivec2(width, height));
+    mSceneRenderTarget->initialize(mSize);
 
     renderer::setSceneTarget(mSceneRenderTarget);
   }
@@ -103,11 +104,13 @@ private:
     delete mSceneRenderTarget;
   }
 
-  void recreateSceneObjects(int width, int height) {
+  void recreateSceneObjects() {
     cleanupSceneObjects();
-    createSceneObjects(width, height);
+    createSceneObjects();
   }
 private:
+  glm::ivec2 mSize = {};
+
   purrScene    *mScene = nullptr;
   purrPipeline *mScenePipeline = nullptr;
   purrRenderTarget *mSceneRenderTarget = nullptr;

@@ -20,7 +20,6 @@ namespace PurrfectEngine {
   static purrRenderTarget *sSceneRenderTarget = nullptr;
 
   static fr::frBuffer *sCameraBuffer = nullptr;
-  static fr::frDescriptor *sCameraUBO = nullptr;
   
   static fr::frBuffer *sTransformsBuffer = nullptr;
   static uint32_t sTransformsBufCap = 0;
@@ -396,8 +395,8 @@ namespace PurrfectEngine {
       VkDescriptorBufferInfo bufferInfo = {
         sCameraBuffer->get(), 0, sizeof(CameraUBO)
       };
-      sCameraUBO = sContext->frDescriptors->allocate(1, sContext->frUboLayout)[0];
-      sCameraUBO->update(fr::frDescriptor::frDescriptorWriteInfo{
+      sContext->frCameraDesc = sContext->frDescriptors->allocate(1, sContext->frUboLayout)[0];
+      sContext->frCameraDesc->update(fr::frDescriptor::frDescriptorWriteInfo{
         0, 0, 1,
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         VK_NULL_HANDLE, &bufferInfo, VK_NULL_HANDLE
@@ -487,7 +486,7 @@ namespace PurrfectEngine {
   }
 
   void renderer::bindCamera(fr::frPipeline *pipeline) {
-    pipeline->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 0, sCameraUBO);
+    pipeline->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 0, sContext->frCameraDesc);
   }
 
   void renderer::bindTransforms(fr::frPipeline *pipeline) {
@@ -585,6 +584,7 @@ namespace PurrfectEngine {
   }
 
   void renderer::cleanup() {
+    purrSkybox::cleanupAll();
     purrSampler::cleanupAll();
     purrMesh::cleanupAll();
     purrMesh2D::cleanupAll();

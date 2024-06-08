@@ -5,6 +5,7 @@ namespace PurrfectEngine {
 
   class purrSampler {
     friend class purrTexture;
+    friend class purrCubemap;
   public:
     purrSampler();
     ~purrSampler();
@@ -22,7 +23,7 @@ namespace PurrfectEngine {
   class purrTexture {
     friend class purrPipeline;
   public:
-    purrTexture(int width, int height, VkFormat format);
+    purrTexture(int width, int height, VkFormat format, fr::frCommands *commands = nullptr);
     ~purrTexture();
 
     // if (!sampler) mDescriptor = nullptr;
@@ -50,6 +51,7 @@ namespace PurrfectEngine {
     bool mColor = true;
     VkSampleCountFlagBits mSampleCount = VK_SAMPLE_COUNT_1_BIT;
 
+    fr::frCommands *mCommands = nullptr;
     fr::frImage *mImage = nullptr;
     purrSampler *mSampler = nullptr;
     fr::frDescriptor *mDescriptor = nullptr;

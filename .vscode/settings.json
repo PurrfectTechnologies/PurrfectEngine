@@ -83,7 +83,15 @@
     "deque": "cpp",
     "regex": "cpp",
     "variant": "cpp",
-    "*.def": "cpp"
+    "*.def": "cpp",
+    "bitset": "cpp",
+    "cinttypes": "cpp",
+    "condition_variable": "cpp",
+    "csignal": "cpp",
+    "fstream": "cpp",
+    "mutex": "cpp",
+    "queue": "cpp",
+    "stack": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }

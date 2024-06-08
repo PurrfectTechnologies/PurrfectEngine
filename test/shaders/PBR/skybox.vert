@@ -12,11 +12,8 @@ layout(binding = 0) uniform Camera {
 
 void main() {
   outLocalPos = inPos;
+  mat4 newView = mat4(mat3(cam.view));
+  vec4 clipPos = cam.projection * newView * vec4(outLocalPos, 1.0);
 
-	// mat4 newView = cam.view;
-	// newView[3][0] = 0.0;
-	// newView[3][1] = 0.0;
-	// newView[3][2] = 0.0;
-
-  gl_Position = cam.projection * cam.view * vec4(outLocalPos, 1.0);
+  gl_Position = clipPos.xyzw;
 }

@@ -13,6 +13,9 @@ namespace PurrfectEngine {
     void cleanup();
 
     void bind(VkCommandBuffer cmdBuf, fr::frPipeline *pipeline);
+    void render(int width, int height);
+
+    static void cleanupAll();
 
     static void setContext(PurrfectEngineContext *context);
   private:

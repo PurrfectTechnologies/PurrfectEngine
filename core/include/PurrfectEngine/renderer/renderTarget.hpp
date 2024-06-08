@@ -5,7 +5,7 @@ namespace PurrfectEngine {
 
   class purrRenderTarget {
   public:
-    purrRenderTarget();
+    purrRenderTarget(fr::frCommands *commands = nullptr);
     ~purrRenderTarget();
 
     void initialize(glm::ivec2 size);
@@ -19,6 +19,7 @@ namespace PurrfectEngine {
     purrTexture *getColorTarget() const { return mColorTarget; }
     purrTexture *getDepthTarget() const { return mDepthTarget; }
   private:
+    fr::frCommands *mCommands = nullptr;
     purrTexture *mColorTarget = nullptr;
     purrTexture *mDepthTarget = nullptr;
     fr::frFramebuffer *mFramebuffer = nullptr;

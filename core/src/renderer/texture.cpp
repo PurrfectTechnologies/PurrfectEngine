@@ -39,8 +39,8 @@ namespace PurrfectEngine {
     if (sDefaultSampler) delete sDefaultSampler;
   }
 
-  purrTexture::purrTexture(int width, int height, VkFormat format):
-    mWidth(width), mHeight(height), mFormat(format)
+  purrTexture::purrTexture(int width, int height, VkFormat format, fr::frCommands *commands):
+    mWidth(width), mHeight(height), mFormat(format), mCommands(commands?commands:sContext->frCommands)
   {}
 
   purrTexture::~purrTexture() {
