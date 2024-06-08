@@ -100,8 +100,6 @@ namespace PurrfectEngine {
 
   void purrPipeline::bind() {
     mPipeline->bind(sContext->frActiveCmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    renderer::bindCamera(mPipeline);
-    renderer::bindTransforms(mPipeline);
   }
 
   void purrPipeline::setContext(PurrfectEngineContext *context) {

@@ -32,8 +32,22 @@ namespace PurrfectEngine {
     void cleanup();
     void resize(int width, int height);
 
+    void bind(fr::frPipeline *pipeline, uint32_t set);
+
     void setPixels(std::vector<uint8_t> pixels);
     void setPixels(uint8_t *pixels, size_t size);
+
+    VkDescriptorImageInfo getDescImageInfo() const {
+      return VkDescriptorImageInfo{
+        mSampler->mSampler->get(),
+        mImage->getView(),
+        mColor?VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+      };
+    }
+
+    static purrTexture *getBlankTexture();
+
+    static void cleanupAll();
 
     static void setContext(PurrfectEngineContext *context);
   public:

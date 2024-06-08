@@ -65,6 +65,19 @@ namespace PurrfectEngine {
     purrCamera *mCamera = nullptr;
   };
 
+  class purrLight;
+  class purrLightComp : public purrComponent {
+  public:
+    purrLightComp(purrLight *light);
+    virtual ~purrLightComp() override;
+
+    virtual const char *getName() override { return "lightComponent"; }
+
+    purrLight *getLight() const { return mLight; }
+  private:
+    purrLight *mLight = nullptr;
+  };
+
   class purrObject {
   public:
     purrObject(purrTransform *transform = new purrTransform());

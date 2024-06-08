@@ -104,9 +104,13 @@ namespace PurrfectEngine {
     initialize(nullptr, mSampler, mMipmaps, mColor);
   }
 
+  void purrTexture::bind(fr::frPipeline *pipeline, uint32_t set) {
+    pipeline->bindDescriptor(sContext->frActiveCmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, set, mDescriptor);
+  }
+
   void purrTexture::setPixels(std::vector<uint8_t> pixels) {
-    size_t maxSize = mWidth * mHeight * PurrfectEngine::Utils::formatToChannels(mFormat);
-    assert(pixels.size() <= maxSize);
+    // size_t maxSize = mWidth * mHeight * PurrfectEngine::Utils::formatToChannels(mFormat);
+    // assert(pixels.size() <= maxSize);
     VkDeviceSize bufferSize = static_cast<VkDeviceSize>(pixels.size());
 
     fr::frBuffer *stagingBuffer = new fr::frBuffer();
@@ -117,20 +121,19 @@ namespace PurrfectEngine {
     stagingBuffer->copyData(0, bufferSize, pixels.data());
 
     mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
-      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-      0, VK_ACCESS_TRANSFER_WRITE_BIT
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+      VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT
     });
     mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer, 0);
     if (mMipmaps) mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
     else mImage->transitionLayout(sContext->frRenderer, sContext->frCommands, fr::frImage::frImageTransitionInfo{
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-      VK_ACCESS_TRANSFER_WRITE_BIT,
-      VK_ACCESS_SHADER_READ_BIT,
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+      VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT
     });
+
+    delete stagingBuffer;
   }
 
   void purrTexture::setPixels(uint8_t *pixels, size_t size) {
@@ -151,6 +154,24 @@ namespace PurrfectEngine {
     });
     mImage->copyFromBuffer(sContext->frRenderer, sContext->frCommands, stagingBuffer, 0);
     mImage->generateMipmaps(sContext->frRenderer, sContext->frCommands);
+   
+    delete stagingBuffer;
+  }
+
+  static purrTexture *sBlnk = nullptr;
+
+  purrTexture *purrTexture::getBlankTexture() {
+    if (!sBlnk) {
+      sBlnk = new purrTexture(512, 512, VK_FORMAT_B8G8R8A8_SRGB);
+      sBlnk->initialize();
+      std::vector<uint8_t> pixels(512*512*4*sizeof(float), 0xFF);
+      sBlnk->setPixels(pixels);
+    }
+    return sBlnk;
+  }
+
+  void purrTexture::cleanupAll() {
+    if (sBlnk) delete sBlnk;
   }
 
   void purrTexture::setContext(PurrfectEngineContext *context) {

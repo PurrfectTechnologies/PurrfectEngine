@@ -20,11 +20,16 @@ namespace PurrfectEngine {
   static purrRenderTarget *sSceneRenderTarget = nullptr;
 
   static fr::frBuffer *sCameraBuffer = nullptr;
-  
+
   static fr::frBuffer *sTransformsBuffer = nullptr;
   static uint32_t sTransformsBufCap = 0;
   static bool sTransformsBufDirty = true;
   static fr::frDescriptor *sTransformsDesc = nullptr;
+
+  static fr::frBuffer *sLightsBuffer = nullptr;
+  static uint32_t sLightsBufCap = 0;
+  static bool sLightsBufDirty = true;
+  static fr::frDescriptor *sLightsDesc = nullptr;
 
   #define IMAGE_NAME_FMT "Swapchain Image %u"
   #define FRAMEBUFFER_NAME_FMT "Swapchain Framebuffer %u"
@@ -332,7 +337,17 @@ namespace PurrfectEngine {
 
     sContext->frSkyboxLayout = new fr::frDescriptorLayout();
     sContext->frSkyboxLayout->addBinding(VkDescriptorSetLayoutBinding{
-      0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
+      0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+      VK_SHADER_STAGE_FRAGMENT_BIT,
+      VK_NULL_HANDLE
+    });
+    sContext->frSkyboxLayout->addBinding(VkDescriptorSetLayoutBinding{
+      1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+      VK_SHADER_STAGE_FRAGMENT_BIT,
+      VK_NULL_HANDLE
+    });
+    sContext->frSkyboxLayout->addBinding(VkDescriptorSetLayoutBinding{
+      2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
       VK_SHADER_STAGE_FRAGMENT_BIT,
       VK_NULL_HANDLE
     });
@@ -462,6 +477,58 @@ namespace PurrfectEngine {
     sTransformsBuffer->copyData(0, sizeof(glm::mat4)*size, transforms.data());
   }
 
+  void renderer::updateLights() {
+    VkDeviceSize bufSize = 0;
+    bool cleanup = true;
+    if (!sLightsBuffer) {
+      sLightsBuffer = new fr::frBuffer();
+      sLightsBufDirty = true;
+      cleanup = false;
+    }
+
+    if (sLightsBufDirty) {
+      bufSize = sizeof(glm::vec4) + (sizeof(purrLight) * (sLightsBufCap>0?sLightsBufCap:(sLightsBufCap=256)));
+      if (cleanup) sLightsBuffer->cleanup();
+      sLightsBuffer->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
+        bufSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
+      });
+      sLightsBufDirty = false;
+    }
+
+    if (!sLightsDesc) {
+      if (bufSize == 0) bufSize = sizeof(glm::vec4) + ((sizeof(glm::vec4)*2) * (sLightsBufCap>0?sLightsBufCap:(sLightsBufCap=256)));
+      VkDescriptorBufferInfo bufferInfo = {
+        sLightsBuffer->get(), 0, bufSize
+      };
+      sLightsDesc = sContext->frDescriptors->allocate(1, sContext->frStorageBufLayout)[0];
+      sLightsDesc->update(fr::frDescriptor::frDescriptorWriteInfo{
+        0, 0, 1,
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        VK_NULL_HANDLE, &bufferInfo, VK_NULL_HANDLE
+      });
+    }
+
+    if (!sContext->activeScene) return;
+    std::vector<purrObject*> objects = sContext->activeScene->getObjects();
+    std::vector<purrLight> lights{};
+    for (purrObject *object: objects) {
+      purrLightComp *comp = nullptr;
+      if ((comp = (purrLightComp*)object->getComponent("lightComponent"))) lights.push_back(*comp->getLight());
+    }
+
+    if (static_cast<uint32_t>(lights.size()) >= sLightsBufCap) {
+      while (static_cast<uint32_t>(lights.size()) >= sLightsBufCap) sLightsBufCap*=2;
+      sLightsBufDirty = true;
+      updateLights();
+      return;
+    }
+
+    uint32_t size = static_cast<uint32_t>(lights.size());
+    glm::uvec4 sizes = {size, 0, 0, 0};
+    sLightsBuffer->copyData(0, sizeof(glm::uvec4), &sizes);
+    if (size > 0) sLightsBuffer->copyData(sizeof(glm::vec4), sizeof(purrLight)*size, lights.data());
+  }
+
   bool renderer::shouldClose() {
     return sContext->frWindow->shouldClose();
   }
@@ -485,14 +552,6 @@ namespace PurrfectEngine {
     return true;
   }
 
-  void renderer::bindCamera(fr::frPipeline *pipeline) {
-    pipeline->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 0, sContext->frCameraDesc);
-  }
-
-  void renderer::bindTransforms(fr::frPipeline *pipeline) {
-    pipeline->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 1, sTransformsDesc);
-  }
-
   void renderer::beginScenePass() {
     sSceneRenderTarget->begin(sCmdBufs[sFrame]);
   }
@@ -502,6 +561,9 @@ namespace PurrfectEngine {
     if (!scene) return;
     std::vector<purrObject*> objects = scene->getObjects();
     uint32_t idx = 0;
+    pipeline->get()->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 0, sContext->frCameraDesc);
+    pipeline->get()->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 1, sTransformsDesc);
+    pipeline->get()->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 2, sLightsDesc);
     for (purrObject *obj: objects) {
       purrComponent *meshComp = nullptr;
       if ((meshComp = obj->getComponent("meshComponent"))) {
@@ -510,9 +572,13 @@ namespace PurrfectEngine {
                                       (uint32_t)0, 
                                       static_cast<uint32_t>(sizeof(uint32_t)), 
                                       (const void*)&idx);
+        purrTexture::getBlankTexture()->bind(pipeline->get(), 4);
+        purrTexture::getBlankTexture()->bind(pipeline->get(), 5);
+        purrTexture::getBlankTexture()->bind(pipeline->get(), 6);
         ((purrMeshComp*)meshComp)->getMesh()->render(sCmdBufs[sFrame]);
       }
       ++idx;
+      auto context = sContext;
     }
   }
 
@@ -586,6 +652,7 @@ namespace PurrfectEngine {
   void renderer::cleanup() {
     purrSkybox::cleanupAll();
     purrSampler::cleanupAll();
+    purrTexture::cleanupAll();
     purrMesh::cleanupAll();
     purrMesh2D::cleanupAll();
 
@@ -593,6 +660,7 @@ namespace PurrfectEngine {
     cleanupSwapchain();
     if (sCameraBuffer) delete sCameraBuffer;
     if (sTransformsBuffer) delete sTransformsBuffer;
+    if (sLightsBuffer) delete sLightsBuffer;
     cleanupScenePass();
     cleanupRenderPass();
     delete sContext->frCommands;

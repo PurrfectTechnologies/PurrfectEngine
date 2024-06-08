@@ -22,7 +22,7 @@ namespace PurrfectEngine {
   // purrMeshComp::purrMeshComp(purrMesh2D *mesh):
   //   mMesh2D(mesh)
   // {}
-  
+
   purrMeshComp::purrMeshComp(bool is2D, const char *filename)
   {
     assert(!is2D && "2D not supported yet!");
@@ -39,13 +39,21 @@ namespace PurrfectEngine {
     if (mMesh) delete mMesh;
     // if (mMesh2D) delete mMesh2D;
   }
-  
+
   purrCameraComp::purrCameraComp(purrCamera *camera):
     mCamera(camera)
   { assert(camera); }
 
   purrCameraComp::~purrCameraComp() {
     delete mCamera;
+  }
+
+  purrLightComp::purrLightComp(purrLight *light):
+    mLight(light)
+  { assert(light); }
+
+  purrLightComp::~purrLightComp() {
+    delete mLight;
   }
 
   purrObject::purrObject(purrTransform *transform):
@@ -77,7 +85,7 @@ namespace PurrfectEngine {
     if (it == mCompNames.end()) return nullptr;
     return mComponents.at(it-mCompNames.begin());
   }
-  
+
   bool purrObject::removeComponent(const char *name) {
     std::vector<const char*>::iterator it;
     if ((it = std::find(mCompNames.begin(), mCompNames.end(), name)) == mCompNames.end()) return false;

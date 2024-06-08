@@ -78,6 +78,11 @@ namespace PurrfectEngine {
     }
   };
 
+  struct purrLight {
+    glm::vec4 position;
+    glm::vec4 color;
+  };
+
   class purrPipeline;
   class purrRenderTarget;
   namespace renderer {
@@ -92,11 +97,10 @@ namespace PurrfectEngine {
     void setSceneTarget(purrRenderTarget *renderTarget);
     void updateCamera();
     void updateTransforms();
+    void updateLights();
 
     bool shouldClose();
     bool renderBegin();
-    void bindCamera(fr::frPipeline *pipeline);
-    void bindTransforms(fr::frPipeline *pipeline);
     void beginScenePass();
     void renderScene(purrPipeline *pipeline);
     void endScenePass();

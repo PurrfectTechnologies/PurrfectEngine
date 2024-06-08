@@ -29,7 +29,8 @@ public:
     renderer::beginScenePass();
     mSkybox->render(mSize.x, mSize.y);
     mScenePipeline->bind();
-    // renderer::renderScene(mScenePipeline);
+    mSkybox->bind(mScenePipeline);
+    renderer::renderScene(mScenePipeline);
     renderer::endScenePass();
   }
 

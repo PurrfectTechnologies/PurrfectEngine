@@ -23,9 +23,9 @@ layout(std430, set = 2, binding = 0) buffer Lights {
   Light lights[];
 } lights;
 
-layout(set = 3, binding = 0) uniform sampler3D uIrradianceMap[1];
-layout(set = 3, binding = 0) uniform sampler3D uPreFilterMap[1];
-layout(set = 3, binding = 0) uniform sampler2D uBrdfLUT[1];
+layout(set = 3, binding = 0) uniform samplerCube uIrradianceMap;
+layout(set = 3, binding = 1) uniform samplerCube uPreFilterMap;
+layout(set = 3, binding = 2) uniform sampler2D uBrdfLUT;
 layout(set = 4, binding = 0) uniform sampler2D uNormalMap;
 layout(set = 5, binding = 0) uniform sampler2D uRoughnessMap;
 layout(set = 6, binding = 0) uniform sampler2D uMetallicMap;
@@ -125,12 +125,12 @@ void main() {
   vec3 kD = 1.0 - kS;
   kD *= 1.0 - metallic;
 
-  vec3 irradiance = texture(uIrradianceMap[0], N).rgb;
+  vec3 irradiance = texture(uIrradianceMap, N).rgb;
   vec3 diffuse = irradiance * albedo;
 
   const float MAX_REFLECTION_LOD = 4.0;
-  vec3 prefilteredColor = textureLod(uPreFilterMap[0], R, roughness * MAX_REFLECTION_LOD).rgb;
-  vec2 envBRDF = texture(uBrdfLUT[0], vec2(max(dot(N, V), 0.0), roughness)).rg;
+  vec3 prefilteredColor = textureLod(uPreFilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+  vec2 envBRDF = texture(uBrdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
   vec3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
 
   vec3 ambient = (kD * diffuse + specular) * ao;
@@ -138,6 +138,5 @@ void main() {
   vec3 color = ambient + Lo;
   color = color / (color + vec3(1.0, 1.0, 1.0));
   color = pow(color, vec3(1.0/2.2, 1.0/2.2, 1.0/2.2));
-
   outColor = vec4(color, 1.0);
 }

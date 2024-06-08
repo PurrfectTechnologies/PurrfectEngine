@@ -50,6 +50,7 @@ namespace PurrfectEngine {
 
       renderer::updateCamera();
       renderer::updateTransforms();
+      renderer::updateLights();
       render(deltaTime);
 
       renderer::render();
