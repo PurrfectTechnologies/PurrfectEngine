@@ -85,6 +85,7 @@ namespace PurrfectEngine {
 
   class purrPipeline;
   class purrRenderTarget;
+  class purrTexture;
   namespace renderer {
     void setContext(PurrfectEngineContext *context);
     void setScene(purrScene *scene);
@@ -102,7 +103,7 @@ namespace PurrfectEngine {
     bool shouldClose();
     bool renderBegin();
     void beginScenePass();
-    void renderScene(purrPipeline *pipeline);
+    void renderScene(purrPipeline *pipeline, purrTexture *roughness, purrTexture *normal, purrTexture *metalic);
     void endScenePass();
     void render();
     bool present();

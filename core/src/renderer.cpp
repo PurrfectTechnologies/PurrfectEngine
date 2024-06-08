@@ -556,7 +556,7 @@ namespace PurrfectEngine {
     sSceneRenderTarget->begin(sCmdBufs[sFrame]);
   }
 
-  void renderer::renderScene(purrPipeline *pipeline) {
+  void renderer::renderScene(purrPipeline *pipeline, purrTexture *roughness, purrTexture *normal, purrTexture *metalic) {
     purrScene *scene = sContext->activeScene;
     if (!scene) return;
     std::vector<purrObject*> objects = scene->getObjects();
@@ -572,9 +572,9 @@ namespace PurrfectEngine {
                                       (uint32_t)0, 
                                       static_cast<uint32_t>(sizeof(uint32_t)), 
                                       (const void*)&idx);
-        purrTexture::getBlankTexture()->bind(pipeline->get(), 4);
-        purrTexture::getBlankTexture()->bind(pipeline->get(), 5);
-        purrTexture::getBlankTexture()->bind(pipeline->get(), 6);
+        normal->bind(pipeline->get(), 4);
+        roughness->bind(pipeline->get(), 5);
+        metalic->bind(pipeline->get(), 6);
         ((purrMeshComp*)meshComp)->getMesh()->render(sCmdBufs[sFrame]);
       }
       ++idx;

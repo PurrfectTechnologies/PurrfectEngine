@@ -30,7 +30,7 @@ public:
     mSkybox->render(mSize.x, mSize.y);
     mScenePipeline->bind();
     mSkybox->bind(mScenePipeline);
-    renderer::renderScene(mScenePipeline);
+    renderer::renderScene(mScenePipeline, mRoughness, mNormal, mMetalic);
     renderer::endScenePass();
   }
 
@@ -78,10 +78,26 @@ protected:
       delete texture;
     }
 
+    { // Load textures
+      // mAlbedo = new purrTexture(0, 0, VK_FORMAT_B8G8R8A8_SRGB);
+      // if (!mAlbedo->initialize("../test/textures/albedo.png")) return false;
+      mMetalic = new purrTexture(0, 0, VK_FORMAT_B8G8R8A8_SRGB);
+      if (!mMetalic->initialize("../test/textures/metallic.png")) return false;
+      mNormal = new purrTexture(0, 0, VK_FORMAT_B8G8R8A8_SRGB);
+      if (!mNormal->initialize("../test/textures/normal.png")) return false;
+      mRoughness = new purrTexture(0, 0, VK_FORMAT_B8G8R8A8_SRGB);
+      if (!mRoughness->initialize("../test/textures/roughness.png")) return false;
+    }
+
     return true;
   }
 
   virtual void cleanup() override {
+    // delete mAlbedo;
+    delete mMetalic;
+    delete mNormal;
+    delete mRoughness;
+
     delete mScene;
     delete mSkybox;
     cleanupSceneObjects();
@@ -115,6 +131,11 @@ private:
   purrScene    *mScene = nullptr;
   purrPipeline *mScenePipeline = nullptr;
   purrRenderTarget *mSceneRenderTarget = nullptr;
+  
+  // purrTexture *mAlbedo = nullptr;
+  purrTexture *mMetalic = nullptr;
+  purrTexture *mNormal = nullptr;
+  purrTexture *mRoughness = nullptr;
 
   purrSkybox *mSkybox = nullptr;
 };
