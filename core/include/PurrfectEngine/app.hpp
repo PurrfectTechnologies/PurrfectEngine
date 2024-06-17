@@ -2,10 +2,16 @@
 #define   PURRENGINE_APP_HPP_
 
 namespace PurrfectEngine {
+  struct purrAppCreateInfo {
+    const char *applicationName;
+    purrWindowInitInfo windowInitInfo;
+    purrRenderer *renderer;
+    purrRendererInitInfo rendererInitInfo;
+  };
 
   class purrApp {
   public:
-    purrApp(const char *windowName);
+    purrApp(purrAppCreateInfo createInfo);
     ~purrApp();
 
     bool init();
@@ -17,18 +23,23 @@ namespace PurrfectEngine {
   
     virtual bool initialize() = 0;
     virtual void cleanup() = 0;
+  public:
+    purrWindow *getWindow() const { return mWindow; }
+    const char *getAppName() const { return mCreateInfo.applicationName; }
   protected:
     void SetScene(purrScene *scene);
     glm::ivec2 GetSize();
   public:
     static purrApp *get() { return sInstance; }
   private:
-    const char *mWindowName = nullptr;
+    purrScene *mScene = nullptr;
+  private:
+    purrWindow *mWindow = nullptr;
+    purrAppCreateInfo mCreateInfo;
     inline static purrApp *sInstance = nullptr;
   };
 
   purrApp *CreateApp();
-
 }
 
 #endif // PURRENGINE_APP_HPP_

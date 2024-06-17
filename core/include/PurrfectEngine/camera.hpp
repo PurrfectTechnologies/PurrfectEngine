@@ -6,8 +6,8 @@ namespace PurrfectEngine {
   class purrCamera {
   public:
     struct Settings {
-      float fov = 90.0f;
-      float aspectRatio = 16.0f/9.0f; // if (aspectRatio == 0) { aspectRatio = (float)(width/height); }
+      float fov = 45.0f;
+      float aspectRatio = 16.0f/9.0f;
       float nearPlane = 0.01f;
       float farPlane = 100.0f;
     };

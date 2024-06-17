@@ -1,6 +1,7 @@
 #include "PurrfectEngine/PurrfectEngine.hpp"
 
 #include <random>
+#include <cstring>
 
 namespace PurrfectEngine {
 
@@ -15,30 +16,38 @@ namespace PurrfectEngine {
   purrComponent::purrComponent()
   {}
 
-  purrMeshComp::purrMeshComp(purrMesh *mesh):
-    mMesh(mesh)
-  { assert(mesh); }
+  // purrMeshComp::purrMeshComp(purrMesh *mesh):
+  //   mMesh(mesh)
+  // { assert(mesh); }
 
-  // purrMeshComp::purrMeshComp(purrMesh2D *mesh):
-  //   mMesh2D(mesh)
-  // {}
+  // // purrMeshComp::purrMeshComp(purrMesh2D *mesh):
+  // //   mMesh2D(mesh)
+  // // {}
 
-  purrMeshComp::purrMeshComp(bool is2D, const char *filename)
-  {
-    assert(!is2D && "2D not supported yet!");
-    // if (is2D) {
-    //   mMesh2D = new purrMesh2D();
-    //   mMesh2D->initialize(filename);
-    // } else {
-      mMesh = new purrMesh();
-      mMesh->initialize(filename);
-    // }
-  }
+  // purrMeshComp::purrMeshComp(bool is2D, const char *filename)
+  // {
+  //   assert(!is2D && "2D not supported yet!");
+  //   // if (is2D) {
+  //   //   mMesh2D = new purrMesh2D();
+  //   //   mMesh2D->initialize(filename);
+  //   // } else {
+  //     mMesh = new purrMesh();
+  //     mMesh->initialize(filename);
+  //   // }
+  // }
 
-  purrMeshComp::~purrMeshComp() {
-    if (mMesh) delete mMesh;
-    // if (mMesh2D) delete mMesh2D;
-  }
+  // purrMeshComp::~purrMeshComp() {
+  //   if (mMesh) delete mMesh;
+  //   // if (mMesh2D) delete mMesh2D;
+  // }
+
+  // purrLightComp::purrLightComp(purrLight *light):
+  //   mLight(light)
+  // { assert(light); }
+
+  // purrLightComp::~purrLightComp() {
+  //   delete mLight;
+  // }
 
   purrCameraComp::purrCameraComp(purrCamera *camera):
     mCamera(camera)
@@ -46,14 +55,6 @@ namespace PurrfectEngine {
 
   purrCameraComp::~purrCameraComp() {
     delete mCamera;
-  }
-
-  purrLightComp::purrLightComp(purrLight *light):
-    mLight(light)
-  { assert(light); }
-
-  purrLightComp::~purrLightComp() {
-    delete mLight;
   }
 
   purrObject::purrObject(purrTransform *transform):

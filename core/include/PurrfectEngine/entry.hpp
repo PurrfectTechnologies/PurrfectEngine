@@ -8,7 +8,6 @@ namespace PurrfectEngine {
       purrApp *app = CreateApp();
       if (!app->init()) return 1;
       app->run();
-      app->cleanup();
       delete app;
       return 0;
     }

@@ -1,40 +1,29 @@
 #include "PurrfectEngine/PurrfectEngine.hpp"
 
+#include <stdio.h>
+
 namespace PurrfectEngine {
 
-  static PurrfectEngineContext *sContext = nullptr;
-
-  purrApp::purrApp(const char *windowName):
-    mWindowName(windowName)
-  { sInstance = this; }
+  purrApp::purrApp(purrAppCreateInfo createInfo):
+    mCreateInfo(createInfo)
+  {
+    assert(mCreateInfo.renderer && "Renderer is required!");
+    sInstance = this;
+  }
 
   purrApp::~purrApp() {
-    try {
-    renderer::cleanup();
-    } catch (fr::frVulkanException &ex) {
-      fprintf(stderr, "Vulkan exception caught: %s\n", ex.what());
-    }
+
   }
 
   bool purrApp::init() {
-    sContext = new PurrfectEngineContext();
-    input::setContext(sContext);
+    mWindow = new purrWindow();
 
-    try {
-    renderer::setContext(sContext);
-    renderer::initialize(mWindowName, 1920, 1080);
-    } catch (fr::frVulkanException &ex) {
-      fprintf(stderr, "Vulkan exception caught: %s\n", ex.what());
-      return false;
-    }
-
-    return initialize();
+    return mWindow->initialize(mCreateInfo.windowInitInfo) && mCreateInfo.renderer->initialize(mWindow, mCreateInfo.rendererInitInfo) && initialize();
   }
 
   void purrApp::run() {
     float lastTime = 0;
-    try {
-    while (!renderer::shouldClose()) {
+    while (!mWindow->shouldClose()) {
       float time = (float)glfwGetTime();
       float deltaTime = time - lastTime;
       lastTime = time;
@@ -43,36 +32,22 @@ namespace PurrfectEngine {
 
       update(deltaTime);
 
-      if (!renderer::renderBegin()) {
-        resize();
-        continue;
-      }
-
-      renderer::updateCamera();
-      renderer::updateTransforms();
-      renderer::updateLights();
-      render(deltaTime);
-
-      renderer::render();
-      if (!renderer::present()) {
-        resize();
-      }
-    }
-    } catch (fr::frVulkanException &ex) {
-      fprintf(stderr, "Vulkan exception caught: %s\n", ex.what());
+      if (!mCreateInfo.renderer->render()) break;
     }
 
-    renderer::waitIdle();
+    mCreateInfo.renderer->waitIdle();
+    cleanup();
+    mCreateInfo.renderer->cleanup();
+    delete mCreateInfo.renderer;
+    delete mWindow;
   }
 
   void purrApp::SetScene(purrScene *scene) {
-    renderer::setScene(scene);
+    mScene = scene;
   }
 
   glm::ivec2 purrApp::GetSize() {
-    int w, h;
-    renderer::getSwapchainSize(&w, &h);
-    return glm::ivec2(w, h);
+    return mCreateInfo.renderer->getSwapchainSize();
   }
 
 }

@@ -2,7 +2,6 @@
 #define   PURRENGINE_ASSETS_HPP_
 
 #include <cstdint>
-#include "renderer/texture.hpp"
 
 namespace PurrfectEngine {
 

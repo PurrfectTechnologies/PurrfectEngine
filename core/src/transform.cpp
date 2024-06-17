@@ -22,6 +22,7 @@ namespace PurrfectEngine {
   }
 
   void purrTransform::setTransform(glm::mat4 trans) {
+    mTransform = trans;
     mPos = mTransform[3];
     mScale.x = glm::length(glm::vec3(mTransform[0]));
     mScale.y = glm::length(glm::vec3(mTransform[1]));
@@ -30,15 +31,15 @@ namespace PurrfectEngine {
   }
   
   glm::vec3 purrTransform::getForward() {
-    return glm::rotate(mRot, glm::vec3(0.0f, 0.0f, 1.0f));
+    return glm::normalize(glm::rotate(mRot, glm::vec3(0.0f, 0.0f, 1.0f)));
   }
 
   glm::vec3 purrTransform::getRight() {
-    return glm::rotate(mRot, glm::vec3(-1.0f, 0.0f, 0.0f));
+    return glm::normalize(glm::rotate(mRot, glm::vec3(-1.0f, 0.0f, 0.0f)));
   }
 
   glm::vec3 purrTransform::getUp() {
-    return glm::rotate(mRot, glm::vec3(0.0f, 1.0f, 0.0f));
+    return glm::normalize(glm::rotate(mRot, glm::vec3(0.0f, 1.0f, 0.0f)));
   }
 
 }

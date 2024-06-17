@@ -25,9 +25,8 @@ layout (location = 2) out vec3 outColor;
 layout (location = 3) out vec2 outUV;
 
 void main() {
-  gl_Position = models.models[pc.objectIndex] * vec4(inPos, 1.0);
-  outWorldPos = gl_Position.xyz;
-  gl_Position = camera.projection * camera.view * gl_Position;
+  outWorldPos = vec3(models.models[pc.objectIndex] * vec4(inPos, 1.0));
+  gl_Position = camera.projection * camera.view * vec4(outWorldPos, 1.0);
   outNormal = inNormal;
   outColor = inColor;
   outUV = inUV;

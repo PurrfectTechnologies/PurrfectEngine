@@ -36,22 +36,35 @@ namespace PurrfectEngine {
   private:
   };
 
-  class purrMesh;
-  class purrMeshComp : public purrComponent {
-  public:
-    purrMeshComp(purrMesh *mesh);
-    // purrMeshComp(purrMesh2D *mesh);
-    purrMeshComp(bool is2D, const char *filename);
-    virtual ~purrMeshComp() override;
+  // class purrMesh;
+  // class purrMeshComp : public purrComponent {
+  // public:
+  //   purrMeshComp(purrMesh *mesh);
+  //   // purrMeshComp(purrMesh2D *mesh);
+  //   purrMeshComp(bool is2D, const char *filename);
+  //   virtual ~purrMeshComp() override;
 
-    virtual const char *getName() override { return "meshComponent"; }
+  //   virtual const char *getName() override { return "meshComponent"; }
 
-    purrMesh *getMesh() const { return mMesh; }
-  private:
-    bool is2D = false;
-    purrMesh *mMesh = nullptr;
-    // purrMesh2D *mMesh2D = nullptr;
-  };
+  //   purrMesh *getMesh() const { return mMesh; }
+  // private:
+  //   bool is2D = false;
+  //   purrMesh *mMesh = nullptr;
+  //   // purrMesh2D *mMesh2D = nullptr;
+  // };
+
+  // class purrLight;
+  // class purrLightComp : public purrComponent {
+  // public:
+  //   purrLightComp(purrLight *light);
+  //   virtual ~purrLightComp() override;
+
+  //   virtual const char *getName() override { return "lightComponent"; }
+
+  //   purrLight *getLight() const { return mLight; }
+  // private:
+  //   purrLight *mLight = nullptr;
+  // };
 
   class purrCameraComp : public purrComponent {
   public:
@@ -63,19 +76,6 @@ namespace PurrfectEngine {
     purrCamera *getCamera() const { return mCamera; }
   private:
     purrCamera *mCamera = nullptr;
-  };
-
-  class purrLight;
-  class purrLightComp : public purrComponent {
-  public:
-    purrLightComp(purrLight *light);
-    virtual ~purrLightComp() override;
-
-    virtual const char *getName() override { return "lightComponent"; }
-
-    purrLight *getLight() const { return mLight; }
-  private:
-    purrLight *mLight = nullptr;
   };
 
   class purrObject {

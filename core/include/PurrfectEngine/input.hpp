@@ -163,8 +163,6 @@ namespace PurrfectEngine {
     };
     }
 
-    void setContext(PurrfectEngineContext *context);
-
     bool      IsKeyDown(KeyCode key);
     bool      IsKeyUp(KeyCode key);
     bool      IsMouseDown(MouseCode btn);

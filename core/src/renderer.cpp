@@ -1,779 +1,662 @@
 #include "PurrfectEngine/PurrfectEngine.hpp"
 
 #include <inttypes.h>
+#include <cstring>
+#include <map>
+#include <set>
+
+#include <vulkan/vk_enum_string_helper.h>
 
 namespace PurrfectEngine {
 
-  struct CameraUBO {
-    glm::mat4 projection;
-    glm::mat4 view;
-  };
+  purrWindow::purrWindow()
+  {}
 
-  static bool sVSync = false;
-  static bool sScDirty = false;
-  static bool sScPassDirty = false;
-  static uint32_t sImageCount = 0;
-  static uint32_t sFrame = 0;
-  static uint32_t sImageIndex = 0;
-
-  static fr::frDescriptor *sSceneDescriptor = nullptr;
-  static purrRenderTarget *sSceneRenderTarget = nullptr;
-
-  static fr::frBuffer *sCameraBuffer = nullptr;
-
-  static fr::frBuffer *sTransformsBuffer = nullptr;
-  static uint32_t sTransformsBufCap = 0;
-  static bool sTransformsBufDirty = true;
-  static fr::frDescriptor *sTransformsDesc = nullptr;
-
-  static fr::frBuffer *sLightsBuffer = nullptr;
-  static uint32_t sLightsBufCap = 0;
-  static bool sLightsBufDirty = true;
-  static fr::frDescriptor *sLightsDesc = nullptr;
-
-  #define IMAGE_NAME_FMT "Swapchain Image %u"
-  #define FRAMEBUFFER_NAME_FMT "Swapchain Framebuffer %u"
-
-  std::vector<char> vertexShader_program = {3, 2, 35, 7, 0, 0, 1, 0, 11, 0, 13, 0, 31, 0, 0, 0, 0, 0, 0, 0, 17, 0, 2, 0, 1, 0, 0, 0, 11, 0, 6, 0, 1, 0, 0, 0, 71, 76, 83, 76, 46, 115, 116, 100, 46, 52, 53, 48, 0, 0, 0, 0, 14, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 15, 0, 9, 0, 0, 0, 0, 0, 4, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 13, 0, 0, 0, 18, 0, 0, 0, 28, 0, 0, 0, 29, 0, 0, 0, 3, 0, 3, 0, 2, 0, 0, 0, -62, 1, 0, 0, 4, 0, 10, 0, 71, 76, 95, 71, 79, 79, 71, 76, 69, 95, 99, 112, 112, 95, 115, 116, 121, 108, 101, 95, 108, 105, 110, 101, 95, 100, 105, 114, 101, 99, 116, 105, 118, 101, 0, 0, 4, 0, 8, 0, 71, 76, 95, 71, 79, 79, 71, 76, 69, 95, 105, 110, 99, 108, 117, 100, 101, 95, 100, 105, 114, 101, 99, 116, 105, 118, 101, 0, 5, 0, 4, 0, 4, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 5, 0, 6, 0, 11, 0, 0, 0, 103, 108, 95, 80, 101, 114, 86, 101, 114, 116, 101, 120, 0, 0, 0, 0, 6, 0, 6, 0, 11, 0, 0, 0, 0, 0, 0, 0, 103, 108, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 6, 0, 7, 0, 11, 0, 0, 0, 1, 0, 0, 0, 103, 108, 95, 80, 111, 105, 110, 116, 83, 105, 122, 101, 0, 0, 0, 0, 6, 0, 7, 0, 11, 0, 0, 0, 2, 0, 0, 0, 103, 108, 95, 67, 108, 105, 112, 68, 105, 115, 116, 97, 110, 99, 101, 0, 6, 0, 7, 0, 11, 0, 0, 0, 3, 0, 0, 0, 103, 108, 95, 67, 117, 108, 108, 68, 105, 115, 116, 97, 110, 99, 101, 0, 5, 0, 3, 0, 13, 0, 0, 0, 0, 0, 0, 0, 5, 0, 4, 0, 18, 0, 0, 0, 105, 110, 80, 111, 115, 0, 0, 0, 5, 0, 4, 0, 28, 0, 0, 0, 111, 117, 116, 85, 86, 0, 0, 0, 5, 0, 4, 0, 29, 0, 0, 0, 105, 110, 85, 86, 0, 0, 0, 0, 72, 0, 5, 0, 11, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 72, 0, 5, 0, 11, 0, 0, 0, 1, 0, 0, 0, 11, 0, 0, 0, 1, 0, 0, 0, 72, 0, 5, 0, 11, 0, 0, 0, 2, 0, 0, 0, 11, 0, 0, 0, 3, 0, 0, 0, 72, 0, 5, 0, 11, 0, 0, 0, 3, 0, 0, 0, 11, 0, 0, 0, 4, 0, 0, 0, 71, 0, 3, 0, 11, 0, 0, 0, 2, 0, 0, 0, 71, 0, 4, 0, 18, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 28, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 29, 0, 0, 0, 30, 0, 0, 0, 1, 0, 0, 0, 19, 0, 2, 0, 2, 0, 0, 0, 33, 0, 3, 0, 3, 0, 0, 0, 2, 0, 0, 0, 22, 0, 3, 0, 6, 0, 0, 0, 32, 0, 0, 0, 23, 0, 4, 0, 7, 0, 0, 0, 6, 0, 0, 0, 4, 0, 0, 0, 21, 0, 4, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 43, 0, 4, 0, 8, 0, 0, 0, 9, 0, 0, 0, 1, 0, 0, 0, 28, 0, 4, 0, 10, 0, 0, 0, 6, 0, 0, 0, 9, 0, 0, 0, 30, 0, 6, 0, 11, 0, 0, 0, 7, 0, 0, 0, 6, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0, 32, 0, 4, 0, 12, 0, 0, 0, 3, 0, 0, 0, 11, 0, 0, 0, 59, 0, 4, 0, 12, 0, 0, 0, 13, 0, 0, 0, 3, 0, 0, 0, 21, 0, 4, 0, 14, 0, 0, 0, 32, 0, 0, 0, 1, 0, 0, 0, 43, 0, 4, 0, 14, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 23, 0, 4, 0, 16, 0, 0, 0, 6, 0, 0, 0, 2, 0, 0, 0, 32, 0, 4, 0, 17, 0, 0, 0, 1, 0, 0, 0, 16, 0, 0, 0, 59, 0, 4, 0, 17, 0, 0, 0, 18, 0, 0, 0, 1, 0, 0, 0, 43, 0, 4, 0, 6, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0, 0, 43, 0, 4, 0, 6, 0, 0, 0, 21, 0, 0, 0, 0, 0, -128, 63, 32, 0, 4, 0, 25, 0, 0, 0, 3, 0, 0, 0, 7, 0, 0, 0, 32, 0, 4, 0, 27, 0, 0, 0, 3, 0, 0, 0, 16, 0, 0, 0, 59, 0, 4, 0, 27, 0, 0, 0, 28, 0, 0, 0, 3, 0, 0, 0, 59, 0, 4, 0, 17, 0, 0, 0, 29, 0, 0, 0, 1, 0, 0, 0, 54, 0, 5, 0, 2, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, -8, 0, 2, 0, 5, 0, 0, 0, 61, 0, 4, 0, 16, 0, 0, 0, 19, 0, 0, 0, 18, 0, 0, 0, 81, 0, 5, 0, 6, 0, 0, 0, 22, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0, 81, 0, 5, 0, 6, 0, 0, 0, 23, 0, 0, 0, 19, 0, 0, 0, 1, 0, 0, 0, 80, 0, 7, 0, 7, 0, 0, 0, 24, 0, 0, 0, 22, 0, 0, 0, 23, 0, 0, 0, 20, 0, 0, 0, 21, 0, 0, 0, 65, 0, 5, 0, 25, 0, 0, 0, 26, 0, 0, 0, 13, 0, 0, 0, 15, 0, 0, 0, 62, 0, 3, 0, 26, 0, 0, 0, 24, 0, 0, 0, 61, 0, 4, 0, 16, 0, 0, 0, 30, 0, 0, 0, 29, 0, 0, 0, 62, 0, 3, 0, 28, 0, 0, 0, 30, 0, 0, 0, -3, 0, 1, 0, 56, 0, 1, 0};
-  std::vector<char> fragmentShader_program = {3, 2, 35, 7, 0, 0, 1, 0, 11, 0, 13, 0, 27, 0, 0, 0, 0, 0, 0, 0, 17, 0, 2, 0, 1, 0, 0, 0, 11, 0, 6, 0, 1, 0, 0, 0, 71, 76, 83, 76, 46, 115, 116, 100, 46, 52, 53, 48, 0, 0, 0, 0, 14, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 15, 0, 7, 0, 4, 0, 0, 0, 4, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 9, 0, 0, 0, 17, 0, 0, 0, 16, 0, 3, 0, 4, 0, 0, 0, 7, 0, 0, 0, 3, 0, 3, 0, 2, 0, 0, 0, -62, 1, 0, 0, 4, 0, 10, 0, 71, 76, 95, 71, 79, 79, 71, 76, 69, 95, 99, 112, 112, 95, 115, 116, 121, 108, 101, 95, 108, 105, 110, 101, 95, 100, 105, 114, 101, 99, 116, 105, 118, 101, 0, 0, 4, 0, 8, 0, 71, 76, 95, 71, 79, 79, 71, 76, 69, 95, 105, 110, 99, 108, 117, 100, 101, 95, 100, 105, 114, 101, 99, 116, 105, 118, 101, 0, 5, 0, 4, 0, 4, 0, 0, 0, 109, 97, 105, 110, 0, 0, 0, 0, 5, 0, 5, 0, 9, 0, 0, 0, 111, 117, 116, 67, 111, 108, 111, 114, 0, 0, 0, 0, 5, 0, 5, 0, 13, 0, 0, 0, 117, 83, 97, 109, 112, 108, 101, 114, 0, 0, 0, 0, 5, 0, 4, 0, 17, 0, 0, 0, 105, 110, 85, 86, 0, 0, 0, 0, 71, 0, 4, 0, 9, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 13, 0, 0, 0, 34, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 13, 0, 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 71, 0, 4, 0, 17, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 19, 0, 2, 0, 2, 0, 0, 0, 33, 0, 3, 0, 3, 0, 0, 0, 2, 0, 0, 0, 22, 0, 3, 0, 6, 0, 0, 0, 32, 0, 0, 0, 23, 0, 4, 0, 7, 0, 0, 0, 6, 0, 0, 0, 4, 0, 0, 0, 32, 0, 4, 0, 8, 0, 0, 0, 3, 0, 0, 0, 7, 0, 0, 0, 59, 0, 4, 0, 8, 0, 0, 0, 9, 0, 0, 0, 3, 0, 0, 0, 25, 0, 9, 0, 10, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 27, 0, 3, 0, 11, 0, 0, 0, 10, 0, 0, 0, 32, 0, 4, 0, 12, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 59, 0, 4, 0, 12, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 23, 0, 4, 0, 15, 0, 0, 0, 6, 0, 0, 0, 2, 0, 0, 0, 32, 0, 4, 0, 16, 0, 0, 0, 1, 0, 0, 0, 15, 0, 0, 0, 59, 0, 4, 0, 16, 0, 0, 0, 17, 0, 0, 0, 1, 0, 0, 0, 23, 0, 4, 0, 20, 0, 0, 0, 6, 0, 0, 0, 3, 0, 0, 0, 43, 0, 4, 0, 6, 0, 0, 0, 22, 0, 0, 0, 0, 0, -128, 63, 54, 0, 5, 0, 2, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, -8, 0, 2, 0, 5, 0, 0, 0, 61, 0, 4, 0, 11, 0, 0, 0, 14, 0, 0, 0, 13, 0, 0, 0, 61, 0, 4, 0, 15, 0, 0, 0, 18, 0, 0, 0, 17, 0, 0, 0, 87, 0, 5, 0, 7, 0, 0, 0, 19, 0, 0, 0, 14, 0, 0, 0, 18, 0, 0, 0, 79, 0, 8, 0, 20, 0, 0, 0, 21, 0, 0, 0, 19, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 81, 0, 5, 0, 6, 0, 0, 0, 23, 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0, 81, 0, 5, 0, 6, 0, 0, 0, 24, 0, 0, 0, 21, 0, 0, 0, 1, 0, 0, 0, 81, 0, 5, 0, 6, 0, 0, 0, 25, 0, 0, 0, 21, 0, 0, 0, 2, 0, 0, 0, 80, 0, 7, 0, 7, 0, 0, 0, 26, 0, 0, 0, 23, 0, 0, 0, 24, 0, 0, 0, 25, 0, 0, 0, 22, 0, 0, 0, 62, 0, 3, 0, 9, 0, 0, 0, 26, 0, 0, 0, -3, 0, 1, 0, 56, 0, 1, 0};
-
-  VkCommandBuffer *sCmdBufs{};
-  std::vector<fr::frSynchronization*> sSynchronizations{};
-
-  static PurrfectEngineContext *sContext;
-
-  void createSwapchain() {
-    sContext->frSwapchain = new fr::frSwapchain();
-    if (sVSync) {
-      sContext->frSwapchain->setDesiredPresentModes({ VK_PRESENT_MODE_FIFO_KHR });
-    } else {
-      sContext->frSwapchain->setDesiredPresentModes({ VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
-    }
-    sContext->frSwapchain->initialize(sContext->frRenderer, sContext->frWindow);
-    sImageCount = sContext->frSwapchain->imageCount();
+  purrWindow::~purrWindow() {
+    cleanup();
   }
 
-  void createSwapchainObjects() {
-    sContext->frScImages.resize(sImageCount);
-    sContext->frFbs.resize(sImageCount);
-
-    int w, h;
-    sContext->frSwapchain->getSize(&w, &h);
-    for (uint32_t i = 0; i < sImageCount; ++i) {
-      fr::frImage *image = new fr::frImage();
-      image->initialize(sContext->frRenderer, sContext->frSwapchain->getImage(i), fr::frImage::frImageInfo{
-        w, h, 1, sContext->frSwapchain->format(),
-        (VkImageUsageFlagBits)(0),
-        false, 0
-      });
-      char buf[32] = {0};
-      sprintf(buf, IMAGE_NAME_FMT, i);
-      image->setName(sContext->frRenderer, buf);
-      sContext->frScImages[i] = image;
-
-      fr::frFramebuffer *fb = new fr::frFramebuffer();
-      fb->initialize(sContext->frRenderer, w, h, 1, sContext->frRenderPass, { sContext->frScImages[i] });
-      sprintf(buf, FRAMEBUFFER_NAME_FMT, i);
-      fb->setName(sContext->frRenderer, buf);
-      sContext->frFbs[i] = fb;
-    }
+  bool purrWindow::initialize(purrWindowInitInfo initInfo) {
+    if (!glfwInit()) return false;
+    if (!glfwVulkanSupported()) return false;
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    return mWindow = glfwCreateWindow(initInfo.width, initInfo.height, initInfo.title, NULL, NULL);
   }
 
-  void cleanupSwapchain() {
-    for (uint32_t i = 0; i < sImageCount; ++i) {
-      delete sContext->frScImages[i];
-      delete sContext->frFbs[i];
-    }
-    delete sContext->frSwapchain;
+  void purrWindow::cleanup() {
+    glfwDestroyWindow(mWindow);
+    glfwTerminate();
   }
 
-  void recreateSwapchain() {
-    auto p = sContext->frWindow->getSize();
-    int w = p.first, h = p.second;
-    while (w == 0 || h == 0) {
-      p = sContext->frWindow->getSize();
-      w = p.first; h = p.second;
-      glfwWaitEvents();
-    }
+  purrRenderer::purrRenderer()
+  {}
 
-    sContext->frRenderer->waitIdle();
-
-    cleanupSwapchain();
-    createSwapchain();
-    createSwapchainObjects();
+  purrRenderer::~purrRenderer() {
+    
   }
 
-  void createScenePass() {
-    VkAttachmentReference colorRef = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
-    VkAttachmentReference depthRef = { 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL };
+  bool purrRenderer::initialize(purrWindow *window, purrRendererInitInfo initInfo) {
+    mWindow = window;
 
-    sContext->frSceneRenderPass = new fr::frRenderPass();
-    sContext->frSceneRenderPass->addAttachment(VkAttachmentDescription{
-      0, sContext->frHdrFormat, (VkSampleCountFlagBits)sContext->frMsaa,
-      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-      VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    });
+    { // Instance
+      { // Add GLFW extensions
+        uint32_t count = 0;
+        const char **exts = glfwGetRequiredInstanceExtensions(&count);
+        if (!exts) {
+          mError = "glfwGetRequiredInstanceExtensions failed!";
+          return false;
+        }
+        while (count > 0) initInfo.extensions.push_back(exts[--count]);
+      }
 
-    sContext->frSceneRenderPass->addAttachment(VkAttachmentDescription{
-      0, sContext->frDepthFormat, (VkSampleCountFlagBits)sContext->frMsaa,
-      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-      VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-    });
+      // bool foundUnsupportedExt = false;
+      // { // Check extension support
+      //   uint32_t extensionCount = 0;
+      //   vkEnumerateInstanceExtensionProperties(VK_NULL_HANDLE, &extensionCount, VK_NULL_HANDLE);
+      //   std::vector<VkExtensionProperties> properties(extensionCount);
+      //   vkEnumerateInstanceExtensionProperties(VK_NULL_HANDLE, &extensionCount, properties.data());
+      //   std::vector<const char *> extensions = initInfo.extensions;
+      //   for (const char *extName: extensions) {
+      //     bool found = false;
+      //     size_t i = 0;
+      //     for (VkExtensionProperties property: properties) {
+      //       if (strcmp(extName, property.extensionName) == 0) {
+      //         found = true;
+      //         break;
+      //       } ++i;
+      //     }
+      //     if (!found) {
+      //       foundUnsupportedExt = true;
+      //       if (initInfo.unsupportedExtensions) initInfo.unsupportedExtensions->push_back(extName);
+      //     }
+      //     else if (extensions.size() <= 0) break;
+      //   }
+      // }
 
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorRef;
-    subpass.pDepthStencilAttachment = &depthRef;
-    sContext->frSceneRenderPass->addSubpass(subpass);
+      // bool foundUnsupportedLyr = false;
+      // { // Check layer support
+      //   uint32_t layerCount = 0;
+      //   vkEnumerateInstanceLayerProperties(&layerCount, VK_NULL_HANDLE);
+      //   std::vector<VkLayerProperties> properties(layerCount);
+      //   vkEnumerateInstanceLayerProperties(&layerCount, properties.data());
+      //   std::vector<const char *> layers = initInfo.layers;
+      //   for (const char *lyrName: layers) {
+      //     bool found = false;
+      //     size_t i = 0;
+      //     for (VkLayerProperties property: properties) {
+      //       if (strcmp(lyrName, property.layerName) == 0) {
+      //         found = true;
+      //         break;
+      //       } ++i;
+      //     }
+      //     if (!found) {
+      //       foundUnsupportedLyr = true;
+      //       if (initInfo.unsupportedLayers) initInfo.unsupportedLayers->push_back(lyrName);
+      //     }
+      //     else if (layers.size() <= 0) break;
+      //   }
+      // }
 
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    sContext->frSceneRenderPass->addDependency(dependency);
+      // if (foundUnsupportedExt||foundUnsupportedLyr) {
+      //   mError = "There is/are unsupported extension(s) or layer(s)!";
+      //   return false;
+      // }
 
-    sContext->frSceneRenderPass->initialize(sContext->frRenderer);
-    sContext->frSceneRenderPass->setName(sContext->frRenderer, "Scene RenderPass");
-  }
+      VkApplicationInfo appInfo{};
+      appInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+      appInfo.pApplicationName   = purrApp::get()->getAppName();
+      appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+      appInfo.pEngineName        = "PurrfectEngine";
+      appInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
+      appInfo.apiVersion         = VK_API_VERSION_1_1;
 
-  void cleanupScenePass() {
-    delete sContext->frSceneRenderPass;
-  }
+      VkInstanceCreateInfo createInfo{};
+      createInfo.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+      createInfo.pApplicationInfo        = &appInfo;
+      createInfo.enabledExtensionCount   = static_cast<uint32_t>(initInfo.extensions.size());
+      createInfo.ppEnabledExtensionNames = initInfo.extensions.data();
+      createInfo.enabledLayerCount       = static_cast<uint32_t>(initInfo.layers.size());
+      createInfo.ppEnabledLayerNames     = initInfo.layers.data();
 
-  void recreateScenePass() {
-    cleanupScenePass();
-    createScenePass();
-  }
-
-  void createRenderPass() {
-    sContext->frRenderPass = new fr::frRenderPass();
-    sContext->frRenderPass->addAttachment(VkAttachmentDescription{
-      0, sContext->frSwapchain->format(), (VkSampleCountFlagBits)sContext->frMsaa,
-      VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-      VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-    });
-
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    sContext->frRenderPass->addSubpass(subpass);
-    sContext->frRenderPass->addDependency(dependency);
-    sContext->frRenderPass->initialize(sContext->frRenderer);
-    sContext->frRenderPass->setName(sContext->frRenderer, "Swapchain RP");
-  }
-
-  void createSwapchainPipeline() {
-    sContext->frPipeline = new fr::frPipeline();
-
-    auto vertShader = new fr::frShader();
-    auto fragShader = new fr::frShader();
-    { // Vertex shader
-      vertShader->initialize(sContext->frRenderer, vertexShader_program, VK_SHADER_STAGE_VERTEX_BIT);
-      sContext->frPipeline->addShader(vertShader);
-    }
-    { // Fragment shader
-      fragShader->initialize(sContext->frRenderer, fragmentShader_program, VK_SHADER_STAGE_FRAGMENT_BIT);
-      sContext->frPipeline->addShader(fragShader);
+      VkResult result = VK_SUCCESS;
+      if ((result = vkCreateInstance(&createInfo, VK_NULL_HANDLE, &mInstance)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
     }
 
-    sContext->frPipeline->setVertexInputState<Vertex2D>();
+    initInfo.deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-    sContext->frPipeline->setMultisampleInfo(VkPipelineMultisampleStateCreateInfo{
-      VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-      (VkSampleCountFlagBits)sContext->frMsaa, VK_FALSE, 0.0f, VK_NULL_HANDLE,
-      VK_FALSE, VK_FALSE
-    });
+    { // Physical device
+      uint32_t deviceCount = 0;
+      vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
+      if (deviceCount <= 0) {
+        mError = "Failed to find GPUs with Vulkan support!";
+        return false;
+      }
 
-    sContext->frPipeline->setInputAssemblyState(VkPipelineInputAssemblyStateCreateInfo{
-      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-      VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
-    });
+      std::vector<VkPhysicalDevice> devices(deviceCount);
+      vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
 
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
+      std::multimap<uint32_t, VkPhysicalDevice> candidates{};
+      for (VkPhysicalDevice device: devices) {
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(device, &deviceProperties);
+        VkPhysicalDeviceFeatures deviceFeatures;
+        vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+        if (!deviceFeatures.geometryShader) continue; // No time to waste in here
 
-    sContext->frPipeline->setColorBlendState(VkPipelineColorBlendStateCreateInfo{
-      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-      VK_FALSE,
-      VK_LOGIC_OP_COPY,
-      1,
-      &colorBlendAttachment,
-      {0.0f, 0.0f, 0.0f, 0.0f}
-    });
+        { // Extension support check
+          uint32_t extensionCount;
+          vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
-    sContext->frPipeline->setRasterizationState(VkPipelineRasterizationStateCreateInfo{
-      VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-      VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE,
-      VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
-    });
+          std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+          vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-    std::vector<VkDynamicState> dynamicStates = {
-      VK_DYNAMIC_STATE_VIEWPORT,
-      VK_DYNAMIC_STATE_SCISSOR
-    };
+          std::set<std::string> requiredExtensions(initInfo.deviceExtensions.begin(), initInfo.deviceExtensions.end());
 
-    sContext->frPipeline->setDynamicState(VkPipelineDynamicStateCreateInfo{
-      VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-      static_cast<uint32_t>(dynamicStates.size()), dynamicStates.data()
-    });
+          for (const auto& extension : availableExtensions) requiredExtensions.erase(extension.extensionName);
 
-    sContext->frPipeline->setViewportState(VkPipelineViewportStateCreateInfo{
-      VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, VK_NULL_HANDLE, 0,
-      1, nullptr, 1, nullptr
-    });
+          if (!requiredExtensions.empty()) continue;
+        }
 
-    sContext->frPipeline->addDescriptor(sContext->frTextureLayout);
+        uint32_t score = 0;
 
-    sContext->frPipeline->initialize(sContext->frRenderer, sContext->frRenderPass);
+        { // Score
+          switch (deviceProperties.deviceType) {
+          case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:   score += 50; break;
+          case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: score += 25; break;
+          case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:    score += 10; break;
+          case VK_PHYSICAL_DEVICE_TYPE_CPU:            score += 5; break;
+          default: break;
+          }
+        }
 
-    delete vertShader;
-    delete fragShader;
-  }
+        candidates.insert(std::make_pair(score, device));
+      }
 
-  void cleanupRenderPass() {
-    delete sContext->frRenderPass;
-    delete sContext->frPipeline;
-  }
-
-  void recreateRenderPass() {
-    cleanupRenderPass();
-    createRenderPass();
-    createSwapchainPipeline();
-  }
-
-  void renderer::setContext(PurrfectEngineContext *context) {
-    sContext = context;
-    purrTexture::setContext(context);
-    purrRenderTarget::setContext(context);
-    purrCubemap::setContext(context);
-    purrSkybox::setContext(context);
-    purrMesh::setContext(context);
-    purrPipeline::setContext(context);
-  }
-
-  void renderer::setScene(purrScene *scene) {
-    sContext->activeScene = scene;
-  }
-
-  void renderer::setVSync(bool enabled) {
-    if (sVSync == enabled) return;
-    sVSync = enabled;
-    sScDirty = true;
-  }
-
-  void renderer::setMSAA(MSAA msaa) {
-    if (sContext->frMsaa == msaa) return;
-    sContext->frMsaa = msaa;
-    sScPassDirty = true;
-  }
-
-  void renderer::initialize(std::string title, int width, int height) {
-    sContext->frWindow = new fr::frWindow(title, width, height);
-
-    sContext->frRenderer = new fr::frRenderer();
-
-    VkPhysicalDeviceFeatures physicalDeviceFeatures{};
-    physicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
-
-    sContext->frWindow->addExtensions(sContext->frRenderer);
-    #if 1
-    sContext->frRenderer->addLayer("VK_LAYER_KHRONOS_validation");
-    sContext->frRenderer->addExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    sContext->frRenderer->addExtension(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-    #endif
-    sContext->frRenderer->initialize(sContext->frWindow, &physicalDeviceFeatures);
-
-    createSwapchain();
-
-    createRenderPass();
-
-    {
-      sContext->frTextureLayout = new fr::frDescriptorLayout();
-      sContext->frTextureLayout->addBinding(VkDescriptorSetLayoutBinding{
-        0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-        VK_SHADER_STAGE_FRAGMENT_BIT,
-        VK_NULL_HANDLE
-      });
-      sContext->frTextureLayout->initialize(sContext->frRenderer);
+      if (candidates.rbegin()->first > 0) {
+        mGPU = candidates.rbegin()->second;
+      } else {
+        mError = "Failed to find suitable GPU!";
+        return false;
+      }
     }
 
-    sContext->frUboLayout = new fr::frDescriptorLayout();
-    sContext->frUboLayout->addBinding(VkDescriptorSetLayoutBinding{
-      0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-      VK_NULL_HANDLE
-    });
-    sContext->frUboLayout->initialize(sContext->frRenderer);
-
-    sContext->frStorageBufLayout = new fr::frDescriptorLayout();
-    sContext->frStorageBufLayout->addBinding(VkDescriptorSetLayoutBinding{
-      0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-      VK_NULL_HANDLE
-    });
-    sContext->frStorageBufLayout->initialize(sContext->frRenderer);
-
-    sContext->frSkyboxLayout = new fr::frDescriptorLayout();
-    sContext->frSkyboxLayout->addBinding(VkDescriptorSetLayoutBinding{
-      0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-      VK_SHADER_STAGE_FRAGMENT_BIT,
-      VK_NULL_HANDLE
-    });
-    sContext->frSkyboxLayout->addBinding(VkDescriptorSetLayoutBinding{
-      1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-      VK_SHADER_STAGE_FRAGMENT_BIT,
-      VK_NULL_HANDLE
-    });
-    sContext->frSkyboxLayout->addBinding(VkDescriptorSetLayoutBinding{
-      2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-      VK_SHADER_STAGE_FRAGMENT_BIT,
-      VK_NULL_HANDLE
-    });
-    sContext->frSkyboxLayout->initialize(sContext->frRenderer);
-
-    createSwapchainPipeline();
-
-    createSwapchainObjects();
-
-    sContext->frCommands = new fr::frCommands();
-    sContext->frCommands->initialize(sContext->frRenderer);
-
-    sCmdBufs = sContext->frCommands->allocateBuffers(VK_COMMAND_BUFFER_LEVEL_PRIMARY, sImageCount);
-
-    sContext->frDescriptors = new fr::frDescriptors();
-    sContext->frDescriptors->initialize(sContext->frRenderer, {
-      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
-      { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 }, // 0: model matrices, 1: lights
-    });
-
-    sContext->frTextureDescriptors = new fr::frDescriptors();
-    sContext->frTextureDescriptors->initialize(sContext->frRenderer, {
-      { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2048 },
-    });
-
-    sContext->frSkyboxDescriptors = new fr::frDescriptors();
-    sContext->frSkyboxDescriptors->initialize(sContext->frRenderer, {
-      { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3*64 }, // 3 * 64 (max skybox count.)
-      { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 6 }
-    });
-
-    for (size_t i = 0; i < sImageCount; ++i) {
-      fr::frSynchronization *sync = new fr::frSynchronization();
-      sync->initialize(sContext->frRenderer);
-      sSynchronizations.push_back(sync);
+    { // Surface
+      VkResult result = VK_SUCCESS;
+      if ((result = glfwCreateWindowSurface(mInstance, window->get(), nullptr, &mSurface)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
     }
 
-    sContext->frDepthFormat = sContext->frRenderer->FindSupportedFormat({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    sContext->frHdrFormat = sContext->frRenderer->FindSupportedFormat({VK_FORMAT_R64G64B64A64_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT, VK_FORMAT_R16G16B16A16_SFLOAT}, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
-   
-    createScenePass();
+    { // Queues
+      uint32_t queueFamilyCount = 0;
+      vkGetPhysicalDeviceQueueFamilyProperties(mGPU, &queueFamilyCount, nullptr);
+      std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+      vkGetPhysicalDeviceQueueFamilyProperties(mGPU, &queueFamilyCount, queueFamilies.data());
+
+      bool graphicsSet = false, presentSet = false;
+      for (uint32_t i = 0; i < queueFamilyCount; ++i) {
+        VkQueueFamilyProperties family = queueFamilies[i];
+
+        if (!graphicsSet && family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+          graphicsSet = true;
+          mGraphicsF = i;
+        }
+
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(mGPU, i, mSurface, &presentSupport);
+        if (presentSupport) {
+          presentSet = true;
+          mPresentF = i;
+        }
+
+        if (graphicsSet && presentSet) break;
+      }
+
+      if (!graphicsSet || !presentSet) {
+        mError = "Failed to find graphics and/or present family!";
+        return false;
+      }
+    }
+
+    { // Logical device
+      std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
+      std::set<uint32_t> uniqueQueueFamilies = {mGraphicsF, mPresentF};
+
+      float queuePriority = 1.0f;
+      for (uint32_t queueFamily : uniqueQueueFamilies) {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
+      }
+
+      VkDeviceCreateInfo createInfo{};
+      createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+      createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+      createInfo.pQueueCreateInfos = queueCreateInfos.data();
+      createInfo.pEnabledFeatures = &initInfo.deviceFeatures;
+      createInfo.enabledExtensionCount = static_cast<uint32_t>(initInfo.deviceExtensions.size());
+      createInfo.ppEnabledExtensionNames = initInfo.deviceExtensions.data();
+      createInfo.enabledLayerCount = static_cast<uint32_t>(initInfo.deviceLayers.size());
+      createInfo.ppEnabledLayerNames = initInfo.deviceLayers.data();
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkCreateDevice(mGPU, &createInfo, nullptr, &mDevice)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+
+      vkGetDeviceQueue(mDevice, mGraphicsF, 0, &mGraphicsQ);
+      vkGetDeviceQueue(mDevice, mPresentF, 0, &mPresentQ);
+    }
+
+    if (!createSwapchain(initInfo.swapchainInfo)) return false;
+
+    { // Render Pass
+      VkAttachmentDescription desc{};
+      desc.format         = mSwapchainFormat;
+      desc.samples        = VK_SAMPLE_COUNT_1_BIT;
+      desc.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+      desc.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+      desc.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+      desc.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+      desc.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+      VkAttachmentReference ref{};
+      ref.attachment = 0;
+      ref.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+      VkSubpassDescription subpass{};
+      subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+      subpass.colorAttachmentCount = 0;
+      subpass.pColorAttachments = &ref;
+
+      VkRenderPassCreateInfo createInfo{};
+      createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+      createInfo.attachmentCount = 1;
+      createInfo.pAttachments = &desc;
+      createInfo.subpassCount = 1;
+      createInfo.pSubpasses = &subpass;
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkCreateRenderPass(mDevice, &createInfo, nullptr, &mRP)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+    }
+
+    if (!createSwapObjs()) return false;
+
+    { // Command pool
+      VkCommandPoolCreateInfo poolInfo{};
+      poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+      poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+      poolInfo.queueFamilyIndex = mGraphicsF;
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mRCommandP)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+    }
+
+    { // Render commands
+      mRCommands = (VkCommandBuffer*)malloc(sizeof(*mRCommands) * mImageCount);
+
+      VkCommandBufferAllocateInfo allocInfo{};
+      allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+      allocInfo.commandPool = mRCommandP;
+      allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+      allocInfo.commandBufferCount = mImageCount;
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkAllocateCommandBuffers(mDevice, &allocInfo, mRCommands)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+    }
+
+    { // Synchronization
+      mISemaphs = (VkSemaphore*)malloc(sizeof(*mISemaphs) * mImageCount);
+      mRSemaphs = (VkSemaphore*)malloc(sizeof(*mRSemaphs) * mImageCount);
+      mFFences  = (VkFence*)malloc(sizeof(*mFFences) * mImageCount);
+
+      VkSemaphoreCreateInfo semaphInfo{};
+      semaphInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+      VkFenceCreateInfo fenceInfo{};
+      fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+      fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+      for (size_t i = 0; i < mImageCount; i++) {
+        if (vkCreateSemaphore(mDevice, &semaphInfo, nullptr, &mISemaphs[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(mDevice, &semaphInfo, nullptr, &mRSemaphs[i]) != VK_SUCCESS ||
+            vkCreateFence(mDevice, &fenceInfo, nullptr, &mFFences[i]) != VK_SUCCESS) {
+          mError = "Failed to create synchronization objects!";
+          return false;
+        }
+      }
+    }
+
+    mSwapchainInfo = initInfo.swapchainInfo;
+
+    return initialize_();
   }
 
-  void renderer::getSwapchainSize(int *width, int *height) {
-    sContext->frSwapchain->getSize(width, height);
-  }
+  bool purrRenderer::render() {
+    vkWaitForFences(mDevice, 1, &mFFences[mFrame], VK_TRUE, UINT64_MAX);
 
-  void renderer::setSceneTarget(purrRenderTarget *renderTarget) {
-    sSceneRenderTarget = renderTarget;
-    sSceneDescriptor = renderTarget->getColorTarget()->getDescriptor();
-  }
-
-  void renderer::updateCamera() {
-    if (!sCameraBuffer) {
-      sCameraBuffer = new fr::frBuffer();
-      sCameraBuffer->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
-        sizeof(CameraUBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
-      });
-
-      VkDescriptorBufferInfo bufferInfo = {
-        sCameraBuffer->get(), 0, sizeof(CameraUBO)
-      };
-      sContext->frCameraDesc = sContext->frDescriptors->allocate(1, sContext->frUboLayout)[0];
-      sContext->frCameraDesc->update(fr::frDescriptor::frDescriptorWriteInfo{
-        0, 0, 1,
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        VK_NULL_HANDLE, &bufferInfo, VK_NULL_HANDLE
-      });
-    }
-
-    if (!sContext->activeScene) return;
-    purrObject *cameraObj = sContext->activeScene->getCamera();
-    if (!cameraObj) return;
-    purrCameraComp *cameraComp = (purrCameraComp*)cameraObj->getComponent("cameraComponent");
-    if (!cameraComp) return;
-    purrCamera *camera = cameraComp->getCamera();
-
-    CameraUBO cameraUbo = {};
-    cameraUbo.projection = camera->getProjection();
-    cameraUbo.view = camera->getView();
-    sCameraBuffer->copyData(0, sizeof(cameraUbo), &cameraUbo);
-  }
-
-  void renderer::updateTransforms() {
-    VkDeviceSize bufSize = sizeof(glm::mat4) * (sTransformsBufCap>0?sTransformsBufCap:(sTransformsBufCap=256));
-    bool cleanup = true;
-    if (!sTransformsBuffer) {
-      sTransformsBuffer = new fr::frBuffer();
-      sTransformsBufDirty = true;
-      cleanup = false;
-    }
-
-    if (sTransformsBufDirty) {
-      if (cleanup) sTransformsBuffer->cleanup();
-      sTransformsBuffer->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
-        bufSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
-      });
-      sTransformsBufDirty = false;
-    }
-
-    if (!sTransformsDesc) {
-      VkDescriptorBufferInfo bufferInfo = {
-        sTransformsBuffer->get(), 0, bufSize
-      };
-      sTransformsDesc = sContext->frDescriptors->allocate(1, sContext->frStorageBufLayout)[0];
-      sTransformsDesc->update(fr::frDescriptor::frDescriptorWriteInfo{
-        0, 0, 1,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        VK_NULL_HANDLE, &bufferInfo, VK_NULL_HANDLE
-      });
-    }
-
-    if (!sContext->activeScene) return;
-    std::vector<purrObject*> objects = sContext->activeScene->getObjects();
-
-    if (static_cast<uint32_t>(objects.size()) >= sTransformsBufCap) {
-      while (static_cast<uint32_t>(objects.size()) >= sTransformsBufCap) sTransformsBufCap*=2;
-      sTransformsBufDirty = true;
-      updateTransforms();
-      return;
-    }
-
-    std::vector<glm::mat4> transforms{};
-    transforms.reserve(objects.size());
-    for (purrObject *object: objects) transforms.push_back(object->getTransform()->getTransform());
-    uint32_t size = static_cast<uint32_t>(transforms.size());
-    sTransformsBuffer->copyData(0, sizeof(glm::mat4)*size, transforms.data());
-  }
-
-  void renderer::updateLights() {
-    VkDeviceSize bufSize = 0;
-    bool cleanup = true;
-    if (!sLightsBuffer) {
-      sLightsBuffer = new fr::frBuffer();
-      sLightsBufDirty = true;
-      cleanup = false;
-    }
-
-    if (sLightsBufDirty) {
-      bufSize = sizeof(glm::vec4) + (sizeof(purrLight) * (sLightsBufCap>0?sLightsBufCap:(sLightsBufCap=256)));
-      if (cleanup) sLightsBuffer->cleanup();
-      sLightsBuffer->initialize(sContext->frRenderer, fr::frBuffer::frBufferInfo{
-        bufSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, {}
-      });
-      sLightsBufDirty = false;
-    }
-
-    if (!sLightsDesc) {
-      if (bufSize == 0) bufSize = sizeof(glm::vec4) + ((sizeof(glm::vec4)*2) * (sLightsBufCap>0?sLightsBufCap:(sLightsBufCap=256)));
-      VkDescriptorBufferInfo bufferInfo = {
-        sLightsBuffer->get(), 0, bufSize
-      };
-      sLightsDesc = sContext->frDescriptors->allocate(1, sContext->frStorageBufLayout)[0];
-      sLightsDesc->update(fr::frDescriptor::frDescriptorWriteInfo{
-        0, 0, 1,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        VK_NULL_HANDLE, &bufferInfo, VK_NULL_HANDLE
-      });
-    }
-
-    if (!sContext->activeScene) return;
-    std::vector<purrObject*> objects = sContext->activeScene->getObjects();
-    std::vector<purrLight> lights{};
-    for (purrObject *object: objects) {
-      purrLightComp *comp = nullptr;
-      if ((comp = (purrLightComp*)object->getComponent("lightComponent"))) lights.push_back(*comp->getLight());
-    }
-
-    if (static_cast<uint32_t>(lights.size()) >= sLightsBufCap) {
-      while (static_cast<uint32_t>(lights.size()) >= sLightsBufCap) sLightsBufCap*=2;
-      sLightsBufDirty = true;
-      updateLights();
-      return;
-    }
-
-    uint32_t size = static_cast<uint32_t>(lights.size());
-    glm::uvec4 sizes = {size, 0, 0, 0};
-    sLightsBuffer->copyData(0, sizeof(glm::uvec4), &sizes);
-    if (size > 0) sLightsBuffer->copyData(sizeof(glm::vec4), sizeof(purrLight)*size, lights.data());
-  }
-
-  bool renderer::shouldClose() {
-    return sContext->frWindow->shouldClose();
-  }
-
-  bool renderer::renderBegin() {
-    sSynchronizations[sFrame]->wait();
-
-    try {
-      sImageIndex = sContext->frRenderer->acquireNextImage(sContext->frSwapchain, sSynchronizations[sFrame]);
-    } catch (fr::frSwapchainResizeException &ex) {
-      recreateSwapchain();
+    uint32_t imageIndex = 0;
+    VkResult result = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mISemaphs[mFrame], VK_NULL_HANDLE, &imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+      recreateSwapchain(mSwapchainInfo);
+      return true;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+      mError = string_VkResult(result);
       return false;
     }
 
-    sSynchronizations[sFrame]->reset();
+    vkResetFences(mDevice, 1, &mFFences[mFrame]);
 
-    vkResetCommandBuffer(sCmdBufs[sFrame], 0);
-    (*sContext).frActiveCmdBuf = sCmdBufs[sFrame];
-    fr::frCommands::begin(sCmdBufs[sFrame]);
+    if (!render_()) return false;
+
+    VkCommandBuffer cmdBuf = mRCommands[mFrame];
+    vkResetCommandBuffer(cmdBuf, 0);
+
+    { // Record command buffer
+      VkCommandBufferBeginInfo beginInfo{};
+      beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+      beginInfo.flags = 0;
+      beginInfo.pInheritanceInfo = nullptr;
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkBeginCommandBuffer(cmdBuf, &beginInfo)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+
+      VkClearValue clearColor = {{{0.0f,0.0f,0.0f,1.0f}}};
+
+      VkRenderPassBeginInfo renderPassInfo{};
+      renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+      renderPassInfo.renderPass = mRP;
+      renderPassInfo.framebuffer = mSwapchainFramebuffers[imageIndex];
+      renderPassInfo.renderArea.offset = {0,0};
+      renderPassInfo.renderArea.extent = mSwapchainExtent;
+      renderPassInfo.clearValueCount = 1;
+      renderPassInfo.pClearValues = &clearColor;
+
+      vkCmdBeginRenderPass(cmdBuf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+
+
+      vkCmdEndRenderPass(cmdBuf);
+
+      vkEndCommandBuffer(cmdBuf);
+    }
+
+    { // Submit
+      VkPipelineStageFlags dstStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
+      VkSubmitInfo submitInfo{};
+      submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      submitInfo.pNext                = VK_NULL_HANDLE;
+      submitInfo.waitSemaphoreCount   = 1;
+      submitInfo.pWaitSemaphores      = &mISemaphs[mFrame];
+      submitInfo.pWaitDstStageMask    = dstStages;
+      submitInfo.commandBufferCount   = 1;
+      submitInfo.pCommandBuffers      = &cmdBuf;
+      submitInfo.signalSemaphoreCount = 1;
+      submitInfo.pSignalSemaphores    = &mRSemaphs[mFrame];
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkQueueSubmit(mGraphicsQ, 1, &submitInfo, mFFences[mFrame])) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+
+      VkPresentInfoKHR presentInfo{};
+      presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+      presentInfo.pNext              = VK_NULL_HANDLE;
+      presentInfo.waitSemaphoreCount = 1;
+      presentInfo.pWaitSemaphores    = &mRSemaphs[mFrame];
+      presentInfo.swapchainCount     = 1;
+      presentInfo.pSwapchains        = &mSwapchain;
+      presentInfo.pImageIndices      = &imageIndex;
+      presentInfo.pResults           = VK_NULL_HANDLE;
+
+      result = vkQueuePresentKHR(mPresentQ, &presentInfo);
+      if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        recreateSwapchain(mSwapchainInfo);
+      } else if (result != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+    }
+
+    mFrame = (mFrame+1)%mImageCount;
 
     return true;
   }
 
-  void renderer::beginScenePass() {
-    sSceneRenderTarget->begin(sCmdBufs[sFrame]);
-  }
+  void purrRenderer::cleanup() {
+    cleanup_();
 
-  void renderer::renderScene(purrPipeline *pipeline, purrTexture *roughness, purrTexture *normal, purrTexture *metalic) {
-    purrScene *scene = sContext->activeScene;
-    if (!scene) return;
-    std::vector<purrObject*> objects = scene->getObjects();
-    uint32_t idx = 0;
-    pipeline->get()->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 0, sContext->frCameraDesc);
-    pipeline->get()->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 1, sTransformsDesc);
-    pipeline->get()->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 2, sLightsDesc);
-    for (purrObject *obj: objects) {
-      purrComponent *meshComp = nullptr;
-      if ((meshComp = obj->getComponent("meshComponent"))) {
-        pipeline->get()->pushConstant(sCmdBufs[sFrame],
-                                      VK_SHADER_STAGE_VERTEX_BIT,
-                                      (uint32_t)0, 
-                                      static_cast<uint32_t>(sizeof(uint32_t)), 
-                                      (const void*)&idx);
-        normal->bind(pipeline->get(), 4);
-        roughness->bind(pipeline->get(), 5);
-        metalic->bind(pipeline->get(), 6);
-        ((purrMeshComp*)meshComp)->getMesh()->render(sCmdBufs[sFrame]);
-      }
-      ++idx;
-      auto context = sContext;
-    }
-  }
-
-  void renderer::endScenePass() {
-    sSceneRenderTarget->end(sCmdBufs[sFrame]);
-  }
-
-  void renderer::render() {
-    std::vector<VkClearValue> clearValues = {};
-    clearValues.push_back({{{1.0f, 1.0f, 1.0f, 1.0f}}});
-
-    sContext->frRenderPass->begin(sCmdBufs[sFrame], sContext->frSwapchain->extent(), sContext->frFbs[sImageIndex], clearValues);
-
-    sContext->frPipeline->bind(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-    auto scExtent = sContext->frSwapchain->extent();
-
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(scExtent.width);
-    viewport.height = static_cast<float>(scExtent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(sCmdBufs[sFrame], 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = scExtent;
-    vkCmdSetScissor(sCmdBufs[sFrame], 0, 1, &scissor);
-
-    if (sSceneDescriptor) sContext->frPipeline->bindDescriptor(sCmdBufs[sFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, 0, sSceneDescriptor);
-    purrMesh2D *squareMesh = purrMesh2D::getSquareMesh();
-    squareMesh->render(sCmdBufs[sFrame]);
-
-    sContext->frRenderPass->end(sCmdBufs[sFrame]);
-  }
-
-  bool renderer::present() {
-    auto ctx = sContext;
-
-    fr::frCommands::end(sCmdBufs[sFrame]);
-    (*sContext).frActiveCmdBuf = VK_NULL_HANDLE;
-    fr::frCommands::submit(sContext->frRenderer, sCmdBufs[sFrame], sSynchronizations[sFrame]);
-    try {
-      sContext->frRenderer->present(sContext->frSwapchain, sSynchronizations[sFrame], &sImageIndex);
-    } catch (fr::frSwapchainResizeException &ex) {
-      sScDirty = true;
-    }
-
-    bool res = !sScDirty;
-    if (sScDirty) {
-      recreateSwapchain();
-      sScDirty = false;
-    }
-    
-    if (sScPassDirty) { // Recreate scene pass (MSAA changed)
-      recreateRenderPass();
-      recreateScenePass();
-      sScPassDirty = false;
-    }
-
-    sFrame = (sFrame+1) % sContext->frSwapchain->imageCount();
-    return res;
-  }
-
-  void renderer::waitIdle() {
-    sContext->frRenderer->waitIdle();
-  }
-
-  void renderer::cleanup() {
-    purrSkybox::cleanupAll();
-    purrSampler::cleanupAll();
-    purrTexture::cleanupAll();
-    purrMesh::cleanupAll();
-    purrMesh2D::cleanupAll();
-
-    delete sContext->frWindow;
     cleanupSwapchain();
-    if (sCameraBuffer) delete sCameraBuffer;
-    if (sTransformsBuffer) delete sTransformsBuffer;
-    if (sLightsBuffer) delete sLightsBuffer;
-    cleanupScenePass();
-    cleanupRenderPass();
-    delete sContext->frCommands;
-    delete sContext->frDescriptors;
-    delete sContext->frTextureDescriptors;
-    delete sContext->frSkyboxDescriptors;
-    delete sContext->frTextureLayout;
-    delete sContext->frSkyboxLayout;
-    delete sContext->frUboLayout;
-    delete sContext->frStorageBufLayout;
-    for (auto sync: sSynchronizations) delete sync;
-    delete sContext->frRenderer;
+
+    for (size_t i = 0; i < mImageCount; ++i) {
+      vkDestroySemaphore(mDevice, mRSemaphs[i], nullptr);
+      vkDestroySemaphore(mDevice, mISemaphs[i], nullptr);
+      vkDestroyFence(mDevice, mFFences[i], nullptr);
+    }
+    vkDestroyCommandPool(mDevice, mRCommandP, nullptr);
+    vkDestroyRenderPass(mDevice, mRP, nullptr);
+    vkDestroyDevice(mDevice, nullptr);
+    vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
+    vkDestroyInstance(mInstance, VK_NULL_HANDLE);
+
+    free(mRSemaphs);
+    free(mISemaphs);
+    free(mFFences);
+    free(mRCommands);
   }
 
-  size_t Utils::formatToChannels(VkFormat format) {
-    switch (format) {
-    case VK_FORMAT_R8_UNORM:             return 1;
-    case VK_FORMAT_R8_SNORM:             return 2;
-    case VK_FORMAT_R8_USCALED:           return 1;
-    case VK_FORMAT_R8_SSCALED:           return 1;
-    case VK_FORMAT_R8_UINT:              return 1;
-    case VK_FORMAT_R8_SINT:              return 1;
-    case VK_FORMAT_R8_SRGB:              return 1;
-    case VK_FORMAT_R16_UNORM:            return 1;
-    case VK_FORMAT_R16_SNORM:            return 1;
-    case VK_FORMAT_R16_USCALED:          return 1;
-    case VK_FORMAT_R16_SSCALED:          return 1;
-    case VK_FORMAT_R16_UINT:             return 1;
-    case VK_FORMAT_R16_SINT:             return 1;
-    case VK_FORMAT_R16_SFLOAT:           return 1;
-    case VK_FORMAT_R32_UINT:             return 1;
-    case VK_FORMAT_R32_SINT:             return 1;
-    case VK_FORMAT_R32_SFLOAT:           return 1;
-    case VK_FORMAT_R64_UINT:             return 1;
-    case VK_FORMAT_R64_SINT:             return 1;
-    case VK_FORMAT_R64_SFLOAT:           return 1;
-    case VK_FORMAT_R8G8_UNORM:           return 2;
-    case VK_FORMAT_R8G8_SNORM:           return 2;
-    case VK_FORMAT_R8G8_USCALED:         return 2;
-    case VK_FORMAT_R8G8_SSCALED:         return 2;
-    case VK_FORMAT_R8G8_UINT:            return 2;
-    case VK_FORMAT_R8G8_SINT:            return 2;
-    case VK_FORMAT_R8G8_SRGB:            return 2;
-    case VK_FORMAT_R16G16_UNORM:         return 2;
-    case VK_FORMAT_R16G16_SNORM:         return 2;
-    case VK_FORMAT_R16G16_USCALED:       return 2;
-    case VK_FORMAT_R16G16_SSCALED:       return 2;
-    case VK_FORMAT_R16G16_UINT:          return 2;
-    case VK_FORMAT_R16G16_SINT:          return 2;
-    case VK_FORMAT_R16G16_SFLOAT:        return 2;
-    case VK_FORMAT_R32G32_UINT:          return 2;
-    case VK_FORMAT_R32G32_SINT:          return 2;
-    case VK_FORMAT_R32G32_SFLOAT:        return 2;
-    case VK_FORMAT_R64G64_UINT:          return 2;
-    case VK_FORMAT_R64G64_SINT:          return 2;
-    case VK_FORMAT_R64G64_SFLOAT:        return 2;
-    case VK_FORMAT_R8G8B8_UNORM:         return 3;
-    case VK_FORMAT_R8G8B8_SNORM:         return 3;
-    case VK_FORMAT_R8G8B8_USCALED:       return 3;
-    case VK_FORMAT_R8G8B8_SSCALED:       return 3;
-    case VK_FORMAT_R8G8B8_UINT:          return 3;
-    case VK_FORMAT_R8G8B8_SINT:          return 3;
-    case VK_FORMAT_R8G8B8_SRGB:          return 3;
-    case VK_FORMAT_B8G8R8_UNORM:         return 3;
-    case VK_FORMAT_B8G8R8_SNORM:         return 3;
-    case VK_FORMAT_B8G8R8_USCALED:       return 3;
-    case VK_FORMAT_B8G8R8_SSCALED:       return 3;
-    case VK_FORMAT_B8G8R8_UINT:          return 3;
-    case VK_FORMAT_B8G8R8_SINT:          return 3;
-    case VK_FORMAT_B8G8R8_SRGB:          return 3;
-    case VK_FORMAT_R16G16B16_UNORM:      return 3;
-    case VK_FORMAT_R16G16B16_SNORM:      return 3;
-    case VK_FORMAT_R16G16B16_USCALED:    return 3;
-    case VK_FORMAT_R16G16B16_SSCALED:    return 3;
-    case VK_FORMAT_R16G16B16_UINT:       return 3;
-    case VK_FORMAT_R16G16B16_SINT:       return 3;
-    case VK_FORMAT_R16G16B16_SFLOAT:     return 3;
-    case VK_FORMAT_R32G32B32_UINT:       return 3;
-    case VK_FORMAT_R32G32B32_SINT:       return 3;
-    case VK_FORMAT_R32G32B32_SFLOAT:     return 3;
-    case VK_FORMAT_R64G64B64_UINT:       return 3;
-    case VK_FORMAT_R64G64B64_SINT:       return 3;
-    case VK_FORMAT_R64G64B64_SFLOAT:     return 3;
-    case VK_FORMAT_R8G8B8A8_UNORM:       return 4;
-    case VK_FORMAT_R8G8B8A8_SNORM:       return 4;
-    case VK_FORMAT_R8G8B8A8_USCALED:     return 4;
-    case VK_FORMAT_R8G8B8A8_SSCALED:     return 4;
-    case VK_FORMAT_R8G8B8A8_UINT:        return 4;
-    case VK_FORMAT_R8G8B8A8_SINT:        return 4;
-    case VK_FORMAT_R8G8B8A8_SRGB:        return 4;
-    case VK_FORMAT_B8G8R8A8_UNORM:       return 4;
-    case VK_FORMAT_B8G8R8A8_SNORM:       return 4;
-    case VK_FORMAT_B8G8R8A8_USCALED:     return 4;
-    case VK_FORMAT_B8G8R8A8_SSCALED:     return 4;
-    case VK_FORMAT_B8G8R8A8_UINT:        return 4;
-    case VK_FORMAT_B8G8R8A8_SINT:        return 4;
-    case VK_FORMAT_B8G8R8A8_SRGB:        return 4;
-    case VK_FORMAT_R16G16B16A16_UNORM:   return 4;
-    case VK_FORMAT_R16G16B16A16_SNORM:   return 4;
-    case VK_FORMAT_R16G16B16A16_USCALED: return 4;
-    case VK_FORMAT_R16G16B16A16_SSCALED: return 4;
-    case VK_FORMAT_R16G16B16A16_UINT:    return 4;
-    case VK_FORMAT_R16G16B16A16_SINT:    return 4;
-    case VK_FORMAT_R16G16B16A16_SFLOAT:  return 4;
-    case VK_FORMAT_R32G32B32A32_UINT:    return 4;
-    case VK_FORMAT_R32G32B32A32_SINT:    return 4;
-    case VK_FORMAT_R32G32B32A32_SFLOAT:  return 4;
-    case VK_FORMAT_R64G64B64A64_UINT:    return 4;
-    case VK_FORMAT_R64G64B64A64_SINT:    return 4;
-    case VK_FORMAT_R64G64B64A64_SFLOAT:  return 4;
-    default: break;
+  bool purrRenderer::recreateSwapchain(purrRendererSwapchainInfo swapchainInfo) {
+    vkDeviceWaitIdle(mDevice);
+
+    int w, h;
+    glfwGetWindowSize(mWindow->get(), &w, &h);
+    while (w <= 0 || h <= 0) {
+      glfwPollEvents();
+      glfwGetWindowSize(mWindow->get(), &w, &h);
     }
-    return 0;
+
+    cleanupSwapchain();
+    return createSwapchain(swapchainInfo) && createSwapObjs();
+  }
+
+  bool purrRenderer::createSwapchain(purrRendererSwapchainInfo swapchainInfo) {
+    { // Swapchain
+      VkSurfaceCapabilitiesKHR capabilities;
+      std::vector<VkSurfaceFormatKHR> formats;
+      std::vector<VkPresentModeKHR> presentModes;
+
+      { // Get swapchain info
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mGPU, mSurface, &capabilities);
+
+        uint32_t formatCount;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(mGPU, mSurface, &formatCount, nullptr);
+
+        if (formatCount != 0) {
+          formats.resize(formatCount);
+          vkGetPhysicalDeviceSurfaceFormatsKHR(mGPU, mSurface, &formatCount, formats.data());
+        }
+
+        uint32_t presentModeCount;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(mGPU, mSurface, &presentModeCount, nullptr);
+
+        if (presentModeCount != 0) {
+          presentModes.resize(presentModeCount);
+          vkGetPhysicalDeviceSurfacePresentModesKHR(mGPU, mSurface, &presentModeCount, presentModes.data());
+        }
+      }
+
+      VkSurfaceFormatKHR format = formats[0];
+      { // Choose swapchain format
+        for (const auto& availableFormat : formats)
+          if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            format = availableFormat;
+      }
+      mSwapchainFormat = format.format;
+
+      VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+      if (!swapchainInfo.VSync) { // Choose swpachain present mode
+        for (const auto& availablePresentMode : presentModes)
+          if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+            presentMode = availablePresentMode;
+      }
+
+      VkExtent2D extent = capabilities.currentExtent;
+      if (capabilities.currentExtent.width == UINT32_MAX) { // Choose swapchain extent
+        int width, height;
+        glfwGetFramebufferSize(mWindow->get(), &width, &height);
+
+        extent = {
+          static_cast<uint32_t>(width),
+          static_cast<uint32_t>(height)
+        };
+
+        extent.width = std::clamp(extent.width,   capabilities.minImageExtent.width,  capabilities.maxImageExtent.width);
+        extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+      }
+      mSwapchainExtent = extent;
+
+      mImageCount = (capabilities.maxImageCount>0?capabilities.minImageCount+1:std::min(capabilities.minImageCount+1, capabilities.maxImageCount));
+
+      VkSwapchainCreateInfoKHR createInfo{};
+      createInfo.sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+      createInfo.surface          = mSurface;
+      createInfo.minImageCount    = mImageCount;
+      createInfo.imageFormat      = format.format;
+      createInfo.imageColorSpace  = format.colorSpace;
+      createInfo.imageExtent      = extent;
+      createInfo.imageArrayLayers = 1;
+      createInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+      createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      if (mGraphicsF != mPresentF) {
+        uint32_t queueFamilyIndices[] = {mGraphicsF, mPresentF};
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+      }
+      createInfo.preTransform = capabilities.currentTransform;
+      createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+      createInfo.presentMode = presentMode;
+      createInfo.clipped = VK_TRUE;
+      createInfo.oldSwapchain = /*mSwapchain?mSwapchain:*/VK_NULL_HANDLE;
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapchain)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+    }
+
+    vkGetSwapchainImagesKHR(mDevice, mSwapchain, &mImageCount, nullptr);
+    mSwapchainImages.resize(mImageCount);
+    vkGetSwapchainImagesKHR(mDevice, mSwapchain, &mImageCount, mSwapchainImages.data());
+
+    return true;
+  }
+
+  bool purrRenderer::createSwapObjs() {
+    mSwapchainImageViews.reserve(mImageCount);
+    mSwapchainFramebuffers.reserve(mImageCount);
+    for (VkImage image: mSwapchainImages) {
+      VkImageView view = VK_NULL_HANDLE;
+      VkResult result = VK_SUCCESS;
+
+      { // Image view
+        VkImageViewCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.image = image;
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        createInfo.format = mSwapchainFormat;
+        createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        createInfo.subresourceRange.baseMipLevel = 0;
+        createInfo.subresourceRange.levelCount = 1;
+        createInfo.subresourceRange.baseArrayLayer = 0;
+        createInfo.subresourceRange.layerCount = 1;
+        if ((result = vkCreateImageView(mDevice, &createInfo, nullptr, &view)) != VK_SUCCESS) {
+          mError = string_VkResult(result);
+          return false;
+        }
+      }
+
+      mSwapchainImageViews.push_back(view);
+
+      { // Framebuffer
+        VkFramebufferCreateInfo createInfo{};
+        createInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        createInfo.renderPass      = mRP;
+        createInfo.attachmentCount = 1;
+        createInfo.pAttachments    = &view;
+        createInfo.width           = mSwapchainExtent.width;
+        createInfo.height          = mSwapchainExtent.height;
+        createInfo.layers          = 1;
+
+        VkFramebuffer fb = VK_NULL_HANDLE;
+        if ((result = vkCreateFramebuffer(mDevice, &createInfo, nullptr, &fb)) != VK_SUCCESS) {
+          mError = string_VkResult(result);
+          return false;
+        }
+        mSwapchainFramebuffers.push_back(fb);
+      }
+    }
+
+    return true;
+  }
+
+  void purrRenderer::cleanupSwapchain() {
+    for (size_t i = 0; i < mImageCount; ++i) {
+      vkDestroyFramebuffer(mDevice, mSwapchainFramebuffers[i], nullptr);
+      vkDestroyImageView(mDevice, mSwapchainImageViews[i], nullptr);
+    }
+    vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
+
+    mSwapchainImageViews.clear();
+    mSwapchainFramebuffers.clear();
+  }
+
+  // Renderer 3D (Default renderer):
+
+  purrRenderer3D::purrRenderer3D() {}
+
+  purrRenderer3D::~purrRenderer3D() {
+
+  }
+
+  bool purrRenderer3D::initialize_() {
+    return true;
+  }
+
+  bool purrRenderer3D::render_() {
+    return true;
+  }
+
+  void purrRenderer3D::cleanup_() {
+    
   }
 
 }
