@@ -66,6 +66,8 @@ namespace PurrfectEngine {
     bool createSwapObjs();
     void cleanupSwapchain();
   protected:
+    VkShaderModule CreateShaderModule(std::vector<char> code);
+  protected:
     purrWindow      *mWindow    = nullptr;
     const char      *mError     = nullptr;
     VkInstance       mInstance  = VK_NULL_HANDLE;
@@ -83,6 +85,8 @@ namespace PurrfectEngine {
     VkSemaphore     *mISemaphs  = VK_NULL_HANDLE;
     VkSemaphore     *mRSemaphs  = VK_NULL_HANDLE;
     VkFence         *mFFences   = VK_NULL_HANDLE;
+    VkPipeline       mPipeline  = VK_NULL_HANDLE;
+    VkPipelineLayout mPipelineL = VK_NULL_HANDLE;
     glm::ivec2       mSwapSize  = {};
 
     VkFormat mSwapchainFormat = VK_FORMAT_UNDEFINED;

@@ -14,6 +14,7 @@ namespace PurrfectEngine {
 
 }
 
+#include "PurrfectEngine/utils.hpp"
 #include "PurrfectEngine/renderer.hpp"
 #include "PurrfectEngine/input.hpp"
 #include "PurrfectEngine/app.hpp"
