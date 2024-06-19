@@ -50,6 +50,7 @@ namespace PurrfectEngine {
     friend class purrSampler;
     friend class purrImage;
     friend class purrRenderTarget;
+    friend class purrPipeline;
   public:
     purrRenderer();
     ~purrRenderer();
@@ -122,10 +123,13 @@ namespace PurrfectEngine {
     inline static purrRenderer *sInstance = nullptr;
   };
 
+  class purrPipeline;
   class purrRenderer3D: public purrRenderer {
   public:
     purrRenderer3D();
     ~purrRenderer3D();
+  private:
+    bool createResources();
   private:
     virtual bool initialize_() override;
     virtual bool resize_()     override;
@@ -137,6 +141,7 @@ namespace PurrfectEngine {
     virtual purrRenderTarget *getRenderTarget() override;
   private:
     purrRenderTarget *mRenderTarget = nullptr;
+    purrPipeline     *mPipeline = nullptr;
   };
 
   class purrBuffer {
@@ -194,6 +199,7 @@ namespace PurrfectEngine {
   };
 
   class purrRenderTarget {
+    friend class purrPipeline;
   public:
     purrRenderTarget();
     ~purrRenderTarget();
@@ -210,12 +216,31 @@ namespace PurrfectEngine {
     VkRenderPass  mRenderPass  = VK_NULL_HANDLE;
   };
 
-  // class purrPipeline {
-  // public:
-  //   purrPipeline();
-  //   ~purrPipeline();
-  // private:
-  // };
+  struct purrPipelineInitInfo {
+    std::vector<std::pair<VkShaderStageFlagBits, const char *>> shaders;
+    VkSampleCountFlagBits samples;
+    std::vector<VkVertexInputBindingDescription> bindings; 
+    std::vector<VkVertexInputAttributeDescription> attributes; 
+    std::vector<VkDescriptorSetLayout> layouts;
+    std::vector<VkPushConstantRange> pushConstants;
+    purrRenderTarget *target;
+  };
+
+  class purrPipeline {
+  public:
+    purrPipeline();
+    ~purrPipeline();
+
+    VkResult initialize(purrPipelineInitInfo initInfo);
+    void cleanup();
+
+    void bind(VkCommandBuffer cmdBuf);
+  private:
+    purrPipelineInitInfo mInitInfo;
+  private:
+    VkPipelineLayout mLayout   = VK_NULL_HANDLE;
+    VkPipeline       mPipeline = VK_NULL_HANDLE;
+  };
 
 }
 
