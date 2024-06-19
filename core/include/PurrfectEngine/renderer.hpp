@@ -65,6 +65,7 @@ namespace PurrfectEngine {
     const char *getError() const { return mError; }
   private:
     virtual bool initialize_() = 0;
+    virtual bool resize_() = 0;
     virtual bool render_() = 0;
     virtual void cleanup_() = 0;
 
@@ -127,6 +128,7 @@ namespace PurrfectEngine {
     ~purrRenderer3D();
   private:
     virtual bool initialize_() override;
+    virtual bool resize_()     override;
     virtual bool render_()     override;
     virtual void cleanup_()    override;
 
@@ -208,13 +210,13 @@ namespace PurrfectEngine {
     VkRenderPass  mRenderPass  = VK_NULL_HANDLE;
   };
 
-}
+  // class purrPipeline {
+  // public:
+  //   purrPipeline();
+  //   ~purrPipeline();
+  // private:
+  // };
 
-// #include "PurrfectEngine/renderer/texture.hpp"
-// #include "PurrfectEngine/renderer/renderTarget.hpp"
-// #include "PurrfectEngine/renderer/cubemap.hpp"
-// #include "PurrfectEngine/renderer/skybox.hpp"
-// #include "PurrfectEngine/renderer/mesh.hpp"
-// #include "PurrfectEngine/renderer/pipeline.hpp"
+}
 
 #endif // PURRENGINE_RENDERER_HPP_

@@ -490,7 +490,7 @@ namespace PurrfectEngine {
     VkResult result = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mISemaphs[mFrame], VK_NULL_HANDLE, &imageIndex);
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
       recreateSwapchain(mSwapchainInfo);
-      return true;
+      return resize_();
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
       mError = string_VkResult(result);
       return false;
@@ -584,6 +584,7 @@ namespace PurrfectEngine {
       result = vkQueuePresentKHR(mPresentQ, &presentInfo);
       if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         recreateSwapchain(mSwapchainInfo);
+        if (!resize_()) return false;
       } else if (result != VK_SUCCESS) {
         mError = string_VkResult(result);
         return false;
@@ -885,6 +886,18 @@ namespace PurrfectEngine {
     });
 
     return true;
+  }
+
+  bool purrRenderer3D::resize_() {
+    mRenderTarget->cleanup();
+    return (mRenderTarget->initialize(purrRenderTargetInitInfo{
+      VkExtent3D{
+        mSwapchainExtent.width,
+        mSwapchainExtent.height,
+        1
+      },
+      nullptr, nullptr, false
+    }) == VK_SUCCESS);
   }
 
   bool purrRenderer3D::render_() {
