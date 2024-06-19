@@ -29,7 +29,7 @@ namespace PurrfectEngine {
   }
 
   purrRenderer::purrRenderer()
-  {}
+  { sInstance = this; }
 
   purrRenderer::~purrRenderer() {
 
@@ -459,7 +459,26 @@ namespace PurrfectEngine {
       vkDestroyShaderModule(mDevice, vertShaderModule, nullptr);
     }
 
+    { // Single-time command pool
+      VkCommandPoolCreateInfo poolInfo{};
+      poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+      poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+      poolInfo.queueFamilyIndex = mGraphicsF;
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mSCommands)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+    }
+
     mSwapchainInfo = initInfo.swapchainInfo;
+
+    mDepthFormat = FindSupportedFormat({ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    if (mDepthFormat == VK_FORMAT_UNDEFINED) {
+      mError = "Failed to find supported depth format!";
+      return false;
+    }
 
     return initialize_();
   }
@@ -582,16 +601,17 @@ namespace PurrfectEngine {
     cleanupSwapchain();
 
     for (size_t i = 0; i < mImageCount; ++i) {
-      vkDestroySemaphore(mDevice, mRSemaphs[i], nullptr);
-      vkDestroySemaphore(mDevice, mISemaphs[i], nullptr);
-      vkDestroyFence(mDevice, mFFences[i], nullptr);
+      vkDestroySemaphore(mDevice, mRSemaphs[i], VK_NULL_HANDLE);
+      vkDestroySemaphore(mDevice, mISemaphs[i], VK_NULL_HANDLE);
+      vkDestroyFence(mDevice, mFFences[i], VK_NULL_HANDLE);
     }
-    vkDestroyCommandPool(mDevice, mRCommandP, nullptr);
-    vkDestroyPipeline(mDevice, mPipeline, nullptr);
-    vkDestroyPipelineLayout(mDevice, mPipelineL, nullptr);
-    vkDestroyRenderPass(mDevice, mRP, nullptr);
-    vkDestroyDevice(mDevice, nullptr);
-    vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
+    vkDestroyCommandPool(mDevice, mRCommandP, VK_NULL_HANDLE);
+    vkDestroyCommandPool(mDevice, mSCommands, VK_NULL_HANDLE);
+    vkDestroyPipeline(mDevice, mPipeline, VK_NULL_HANDLE);
+    vkDestroyPipelineLayout(mDevice, mPipelineL, VK_NULL_HANDLE);
+    vkDestroyRenderPass(mDevice, mRP, VK_NULL_HANDLE);
+    vkDestroyDevice(mDevice, VK_NULL_HANDLE);
+    vkDestroySurfaceKHR(mInstance, mSurface, VK_NULL_HANDLE);
     vkDestroyInstance(mInstance, VK_NULL_HANDLE);
 
     free(mRSemaphs);
@@ -762,10 +782,10 @@ namespace PurrfectEngine {
 
   void purrRenderer::cleanupSwapchain() {
     for (size_t i = 0; i < mImageCount; ++i) {
-      vkDestroyFramebuffer(mDevice, mSwapchainFramebuffers[i], nullptr);
-      vkDestroyImageView(mDevice, mSwapchainImageViews[i], nullptr);
+      vkDestroyFramebuffer(mDevice, mSwapchainFramebuffers[i], VK_NULL_HANDLE);
+      vkDestroyImageView(mDevice, mSwapchainImageViews[i], VK_NULL_HANDLE);
     }
-    vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
+    vkDestroySwapchainKHR(mDevice, mSwapchain, VK_NULL_HANDLE);
 
     mSwapchainImageViews.clear();
     mSwapchainFramebuffers.clear();
@@ -788,6 +808,63 @@ namespace PurrfectEngine {
     return shaderModule;
   }
 
+  bool purrRenderer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, uint32_t *result) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(mGPU, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+      if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+        *result = i;
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  VkFormat purrRenderer::FindSupportedFormat(std::vector<VkFormat> candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
+    for (VkFormat c: candidates) {
+      VkFormatProperties props{};
+      vkGetPhysicalDeviceFormatProperties(mGPU, c, &props);
+      if ((tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) ||
+          (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)) return c;
+    }
+    return VK_FORMAT_UNDEFINED;
+  }
+
+  VkCommandBuffer purrRenderer::BeginSingleTime() {
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = mSCommands;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer cmdBuf;
+    vkAllocateCommandBuffers(mDevice, &allocInfo, &cmdBuf);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(cmdBuf, &beginInfo);
+
+    return cmdBuf;
+  }
+
+  void purrRenderer::EndSingleTime(VkCommandBuffer cmdBuf) {
+    vkEndCommandBuffer(cmdBuf);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmdBuf;
+
+    vkQueueSubmit(mGraphicsQ, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(mGraphicsQ);
+
+    vkFreeCommandBuffers(mDevice, mSCommands, 1, &cmdBuf);
+  }
+
   // Renderer 3D (Default renderer):
 
   purrRenderer3D::purrRenderer3D() {}
@@ -797,6 +874,16 @@ namespace PurrfectEngine {
   }
 
   bool purrRenderer3D::initialize_() {
+    mRenderTarget = new purrRenderTarget();
+    mRenderTarget->initialize(purrRenderTargetInitInfo{
+      VkExtent3D{
+        mSwapchainExtent.width,
+        mSwapchainExtent.height,
+        1
+      },
+      nullptr, nullptr, false
+    });
+
     return true;
   }
 
@@ -805,7 +892,249 @@ namespace PurrfectEngine {
   }
 
   void purrRenderer3D::cleanup_() {
+    delete mRenderTarget;
+  }
 
+  VkFormat purrRenderer3D::getRenderTargetFormat() {
+    return VK_FORMAT_R16G16B16A16_SFLOAT;
+  }
+
+  VkSampleCountFlagBits purrRenderer3D::getSampleCount() {
+    return VK_SAMPLE_COUNT_1_BIT;
+  }
+
+  purrRenderTarget *purrRenderer3D::getRenderTarget() {
+    return mRenderTarget;
+  }
+
+  purrImage::purrImage()
+  {}
+
+  purrImage::~purrImage() {
+    cleanup();
+  }
+
+  VkResult purrImage::initialize(purrImageInitInfo initInfo) {
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.pNext                 = VK_NULL_HANDLE;
+    imageInfo.flags                 = 0;
+    imageInfo.imageType             = initInfo.type;
+    imageInfo.format                = initInfo.format;
+    imageInfo.extent                = initInfo.extent;
+    imageInfo.mipLevels             = 1; // TODO: Implement bitmaps
+    imageInfo.arrayLayers           = initInfo.arrayLayers;
+    imageInfo.samples               = initInfo.samples;
+    imageInfo.tiling                = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.usage                 = (((initInfo.aspect==VK_IMAGE_ASPECT_COLOR_BIT)?VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT:VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    imageInfo.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
+    imageInfo.queueFamilyIndexCount = 0;
+    imageInfo.pQueueFamilyIndices   = VK_NULL_HANDLE;
+    imageInfo.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    purrRenderer *renderer = purrRenderer::getInstance();
+
+    VkResult result = VK_SUCCESS;
+    if ((result = vkCreateImage(renderer->mDevice, &imageInfo, VK_NULL_HANDLE, &mImage)) != VK_SUCCESS) return result;
+
+    VkMemoryRequirements memRequirements{};
+    vkGetImageMemoryRequirements(renderer->mDevice, mImage, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    if (!renderer->FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &allocInfo.memoryTypeIndex)) return VK_INCOMPLETE;
+
+    if ((result = vkAllocateMemory(renderer->mDevice, &allocInfo, nullptr, &mMemory)) != VK_SUCCESS) return result;
+
+    vkBindImageMemory(renderer->mDevice, mImage, mMemory, 0);
+
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.pNext            = VK_NULL_HANDLE;
+    viewInfo.flags            = 0;
+    viewInfo.image            = mImage;
+    viewInfo.viewType         = initInfo.viewType;
+    viewInfo.format           = initInfo.format;
+    viewInfo.components.r     = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.components.g     = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.components.b     = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.components.a     = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.subresourceRange = {
+      initInfo.aspect, 0, 1, 0, initInfo.arrayLayers
+    };
+
+    return vkCreateImageView(renderer->mDevice, &viewInfo, VK_NULL_HANDLE, &mView);
+  }
+
+  void purrImage::cleanup() {
+    VkDevice device = purrRenderer::getInstance()->mDevice;
+    if (mImage)  vkDestroyImage(device, mImage, VK_NULL_HANDLE);
+    if (mView)   vkDestroyImageView(device, mView, VK_NULL_HANDLE);
+    if (mMemory) vkFreeMemory(device, mMemory, VK_NULL_HANDLE);
+  }
+
+  // TODO: Add `purrSampler` class
+  VkResult purrImage::createSet(VkSampler sampler) {
+    VkResult result = VK_SUCCESS;
+    return result;
+  }
+
+  VkResult purrImage::copyFromBuffer(purrBuffer *src) {
+    VkResult result = VK_SUCCESS;
+    return result;
+  }
+
+  VkResult purrImage::copyToBuffer(purrBuffer *dst) {
+    VkResult result = VK_SUCCESS;
+    return result;
+  }
+
+  VkResult purrImage::copyFromImage(purrImage *src) {
+    VkResult result = VK_SUCCESS;
+    return result;
+  }
+
+  VkResult purrImage::transitionLayout(VkImageLayout layout, VkPipelineStageFlagBits stage, VkAccessFlags accessFlag) {
+    VkResult result = VK_SUCCESS;
+    return result;
+  }
+
+  purrRenderTarget::purrRenderTarget()
+  {}
+
+  purrRenderTarget::~purrRenderTarget() {
+    cleanup();
+  }
+
+  VkResult purrRenderTarget::initialize(purrRenderTargetInitInfo initInfo) {
+    mInitInfo = initInfo;
+    purrRenderer *renderer = purrRenderer::getInstance();
+
+    VkResult result = VK_SUCCESS;
+    if (!mInitInfo.colorImage) {
+      mInitInfo.colorImage = new purrImage();
+      if ((result = mInitInfo.colorImage->initialize(purrImageInitInfo{
+        renderer->getRenderTargetFormat(),
+        mInitInfo.extent, 1,
+        VK_IMAGE_TYPE_2D,
+        VK_IMAGE_VIEW_TYPE_2D,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        renderer->getSampleCount(),
+        true
+      })) != VK_SUCCESS) return result;
+    }
+
+    if (mInitInfo.depth && !mInitInfo.depthImage) {
+      mInitInfo.depthImage = new purrImage();
+      if ((result = mInitInfo.depthImage->initialize(purrImageInitInfo{
+        renderer->mDepthFormat,
+        mInitInfo.extent, 1,
+        VK_IMAGE_TYPE_2D,
+        VK_IMAGE_VIEW_TYPE_2D,
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        renderer->getSampleCount(),
+        true
+      })) != VK_SUCCESS) return result;
+    }
+
+    std::vector<VkAttachmentDescription> descs{};
+    descs.push_back(VkAttachmentDescription{0,
+      renderer->getRenderTargetFormat(),
+      renderer->getSampleCount(),
+      VK_ATTACHMENT_LOAD_OP_CLEAR,
+      VK_ATTACHMENT_STORE_OP_STORE,
+      VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+      VK_ATTACHMENT_STORE_OP_DONT_CARE,
+      VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    });
+
+    if (mInitInfo.depth) {
+      descs.push_back(VkAttachmentDescription{0,
+        renderer->mDepthFormat,
+        renderer->getSampleCount(),
+        VK_ATTACHMENT_LOAD_OP_CLEAR,
+        VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+      });
+    }
+
+    VkAttachmentReference ref{};
+    ref.attachment      = 0;
+    ref.layout          = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthRef{};
+    depthRef.attachment = 1;
+    depthRef.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments    = &ref;
+    if (mInitInfo.depth) subpass.pDepthStencilAttachment = &depthRef;
+
+    VkRenderPassCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    createInfo.attachmentCount = static_cast<uint32_t>(descs.size());
+    createInfo.pAttachments = descs.data();
+    createInfo.subpassCount = 1;
+    createInfo.pSubpasses = &subpass;
+
+    if ((result = vkCreateRenderPass(renderer->mDevice, &createInfo, nullptr, &mRenderPass)) != VK_SUCCESS) return result;
+
+    VkImageView *attachments = (VkImageView*)malloc(sizeof(VkImageView)*(mInitInfo.depth+1));
+    attachments[0] = mInitInfo.colorImage->getView();
+    if (mInitInfo.depth) attachments[1] = mInitInfo.depthImage->getView();
+
+    VkFramebufferCreateInfo fbInfo{};
+    fbInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    fbInfo.renderPass      = mRenderPass;
+    fbInfo.attachmentCount = mInitInfo.depth+1;
+    fbInfo.pAttachments    = attachments;
+    fbInfo.width           = mInitInfo.extent.width;
+    fbInfo.height          = mInitInfo.extent.height;
+    fbInfo.layers          = 1;
+
+    result = vkCreateFramebuffer(renderer->mDevice, &fbInfo, nullptr, &mFramebuffer);
+    free(attachments);
+    return result;
+  }
+
+  void purrRenderTarget::cleanup() {
+    purrRenderer *renderer = purrRenderer::getInstance();
+    if (mInitInfo.colorImage) delete mInitInfo.colorImage;
+    if (mInitInfo.depthImage) delete mInitInfo.depthImage;
+    if (mFramebuffer) vkDestroyFramebuffer(renderer->mDevice, mFramebuffer, VK_NULL_HANDLE);
+    if (mRenderPass) vkDestroyRenderPass(renderer->mDevice, mRenderPass, VK_NULL_HANDLE);
+  }
+
+  void purrRenderTarget::begin(VkCommandBuffer cmdBuf) {
+    purrRenderer *renderer = purrRenderer::getInstance();
+
+    VkClearValue *clearValues = (VkClearValue*)malloc(sizeof(VkClearValue)*(mInitInfo.depth+1));
+    clearValues[0] = ((VkClearValue){{{0.0f,0.0f,0.0f,1.0}}});
+    if (mInitInfo.depth) clearValues[1] = ((VkClearValue){{0.0f,1.0f}});
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = mRenderPass;
+    renderPassInfo.framebuffer = mFramebuffer;
+    renderPassInfo.renderArea.offset = {0,0};
+    renderPassInfo.renderArea.extent = VkExtent2D{mInitInfo.extent.width, mInitInfo.extent.height};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = clearValues;
+
+    vkCmdBeginRenderPass(cmdBuf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    free(clearValues);
+  }
+
+  void purrRenderTarget::end(VkCommandBuffer cmdBuf) {
+    vkCmdEndRenderPass(cmdBuf);
   }
 
 }
