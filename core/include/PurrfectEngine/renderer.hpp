@@ -29,6 +29,15 @@ namespace PurrfectEngine {
     GLFWwindow *mWindow = nullptr;
   };
 
+  class purrRendererExt {
+  public:
+    virtual bool initialize() = 0;
+    virtual bool preUpdate()  = 0;
+    virtual bool update()     = 0;
+    virtual void cleanup()    = 0;
+  private:
+  };
+
   struct purrRendererSwapchainInfo {
     bool VSync = true;
   };
@@ -45,14 +54,14 @@ namespace PurrfectEngine {
   };
 
   class purrRenderTarget;
-  class purrRenderer {
+  class purrRenderer: public purrExtendable<purrRendererExt> {
     friend class purrBuffer;
     friend class purrSampler;
     friend class purrImage;
     friend class purrRenderTarget;
     friend class purrPipeline;
   public:
-    purrRenderer();
+    purrRenderer(std::vector<purrRendererExt*> extensions);
     ~purrRenderer();
 
     bool initialize(purrWindow *window, purrRendererInitInfo initInfo);
@@ -121,27 +130,6 @@ namespace PurrfectEngine {
     uint32_t mFrame = 0;
   private:
     inline static purrRenderer *sInstance = nullptr;
-  };
-
-  class purrPipeline;
-  class purrRenderer3D: public purrRenderer {
-  public:
-    purrRenderer3D();
-    ~purrRenderer3D();
-  private:
-    bool createResources();
-  private:
-    virtual bool initialize_() override;
-    virtual bool resize_()     override;
-    virtual bool render_()     override;
-    virtual void cleanup_()    override;
-
-    virtual VkFormat getRenderTargetFormat() override;
-    virtual VkSampleCountFlagBits getSampleCount() override;
-    virtual purrRenderTarget *getRenderTarget() override;
-  private:
-    purrRenderTarget *mRenderTarget = nullptr;
-    purrPipeline     *mPipeline = nullptr;
   };
 
   class purrBuffer {
@@ -243,5 +231,7 @@ namespace PurrfectEngine {
   };
 
 }
+
+#include "PurrfectEngine/renderer3D.hpp"
 
 #endif // PURRENGINE_RENDERER_HPP_
