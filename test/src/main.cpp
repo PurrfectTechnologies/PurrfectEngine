@@ -8,7 +8,9 @@ using namespace PurrfectEngine;
 class testApp: public purrApp {
 public:
   testApp():
-    purrApp(purrAppCreateInfo{"PurrEngineTest"})
+    purrApp(purrAppCreateInfo{"PurrEngineTest"}, {
+      new purrAppRendererExt(new purrRenderer3D(), purrWindowInitInfo{"PurrfectEngine - Test", 1920, 1080}, purrRendererInitInfo{{ VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }})
+    })
   {}
 
   ~testApp() {
@@ -16,17 +18,6 @@ public:
   }
 protected:
   virtual bool initialize() override {
-    mWindow = new purrWindow();
-    if (!mWindow->initialize(purrWindowInitInfo{
-      "PurrfectEngine - Test", 1920, 1080
-    })) return false;
-    input::SetWindow(mWindow);
-
-    mRenderer = new purrRenderer3D();
-    if (!mRenderer->initialize(mWindow, purrRendererInitInfo{
-      { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }
-    })) return false;
-
     mScene = new purrScene();
     { // Initialize object
       purrObject *object = new purrObject();
@@ -51,8 +42,6 @@ protected:
   }
 
   virtual bool update(float dt) override {
-    glfwPollEvents();
-
     int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
     int y = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
 
@@ -61,25 +50,13 @@ protected:
     rot.y -= x * dt;
     mScene->getCamera()->getTransform()->setRotation(glm::quat(rot));
 
-    bool r = render(dt);
-    mRunning = !mWindow->shouldClose();
-    return r;
-  }
-
-  bool render(float dt) {
-    return mRenderer->render();
+    return true;
   }
 
   virtual void cleanup() override {
-    mRenderer->waitIdle();
-    mRenderer->cleanup();
-    delete mRenderer;
-    delete mWindow;
     delete mScene;
   }
 private:
-  purrWindow *mWindow = nullptr;
-  purrRenderer3D *mRenderer = nullptr;
   purrScene *mScene = nullptr;
 };
 

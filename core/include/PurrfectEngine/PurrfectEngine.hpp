@@ -6,6 +6,10 @@
 
 #undef max
 
+#include <vector>
+
+#include "PurrfectEngine/extensions.hpp"
+
 #include "PurrfectEngine/transform.hpp"
 #include "PurrfectEngine/camera.hpp"
 #include "PurrfectEngine/scene.hpp"

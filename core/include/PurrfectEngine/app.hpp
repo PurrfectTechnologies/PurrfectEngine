@@ -6,9 +6,36 @@ namespace PurrfectEngine {
     const char *applicationName;
   };
 
-  class purrApp {
+  class purrAppExt {
   public:
-    purrApp(purrAppCreateInfo createInfo);
+    virtual ~purrAppExt() = default;
+
+    virtual bool initialize() = 0;
+    virtual bool preUpdate()  = 0;
+    virtual bool update()     = 0;
+    virtual void cleanup()    = 0;
+  private:
+  };
+
+  class purrAppRendererExt: public purrAppExt {
+  public:
+    purrAppRendererExt(purrRenderer *renderer, purrWindowInitInfo windowInfo, purrRendererInitInfo rendererInfo);
+
+    virtual bool initialize() override;
+    virtual bool preUpdate()  override;
+    virtual bool update()     override;
+    virtual void cleanup()    override;
+  private:
+    purrWindowInitInfo mWindowInfo;
+    purrRendererInitInfo mRendererInfo;
+  private:
+    purrWindow *mWindow = nullptr;
+    purrRenderer *mRenderer = nullptr;
+  };
+
+  class purrApp: public purrExtendable<purrAppExt> {
+  public:
+    purrApp(purrAppCreateInfo createInfo, std::vector<purrAppExt*> extensions);
     ~purrApp();
 
     bool init();
