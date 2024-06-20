@@ -163,6 +163,7 @@ namespace PurrfectEngine {
     };
     }
 
+	  void      SetWindow(purrWindow *window);
     bool      IsKeyDown(KeyCode key);
     bool      IsKeyUp(KeyCode key);
     bool      IsMouseDown(MouseCode btn);

@@ -8,36 +8,25 @@ using namespace PurrfectEngine;
 class testApp: public purrApp {
 public:
   testApp():
-    purrApp(purrAppCreateInfo{"PurrEngineTest", purrWindowInitInfo{
-      "PurrfectEngine - Test", 1920, 1080
-    }, new purrRenderer3D(), purrRendererInitInfo{
-      { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }
-    }})
+    purrApp(purrAppCreateInfo{"PurrEngineTest"})
   {}
 
   ~testApp() {
 
   }
-
-  virtual void update(float dt) override {
-    int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
-    int y = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
-
-    glm::vec3 rot = glm::eulerAngles(mScene->getCamera()->getTransform()->getRotation());
-    rot.x -= y * dt;
-    rot.y -= x * dt;
-    mScene->getCamera()->getTransform()->setRotation(glm::quat(rot));
-  }
-
-  virtual void render(float dt) override {
-    
-  }
-
-  virtual void resize() override {
-    
-  }
 protected:
   virtual bool initialize() override {
+    mWindow = new purrWindow();
+    if (!mWindow->initialize(purrWindowInitInfo{
+      "PurrfectEngine - Test", 1920, 1080
+    })) return false;
+    input::SetWindow(mWindow);
+
+    mRenderer = new purrRenderer3D();
+    if (!mRenderer->initialize(mWindow, purrRendererInitInfo{
+      { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }
+    })) return false;
+
     mScene = new purrScene();
     { // Initialize object
       purrObject *object = new purrObject();
@@ -61,10 +50,36 @@ protected:
     return true;
   }
 
+  virtual bool update(float dt) override {
+    glfwPollEvents();
+
+    int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
+    int y = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
+
+    glm::vec3 rot = glm::eulerAngles(mScene->getCamera()->getTransform()->getRotation());
+    rot.x -= y * dt;
+    rot.y -= x * dt;
+    mScene->getCamera()->getTransform()->setRotation(glm::quat(rot));
+
+    bool r = render(dt);
+    mRunning = !mWindow->shouldClose();
+    return r;
+  }
+
+  bool render(float dt) {
+    return mRenderer->render();
+  }
+
   virtual void cleanup() override {
+    mRenderer->waitIdle();
+    mRenderer->cleanup();
+    delete mRenderer;
+    delete mWindow;
     delete mScene;
   }
 private:
+  purrWindow *mWindow = nullptr;
+  purrRenderer3D *mRenderer = nullptr;
   purrScene *mScene = nullptr;
 };
 
