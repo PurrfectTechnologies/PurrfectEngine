@@ -13,3 +13,6 @@
 [submodule "dependencies/KTX-Software"]
 	path = dependencies/KTX-Software
 	url = https://github.com/KhronosGroup/KTX-Software/
+[submodule "dependencies/openal-soft"]
+	path = dependencies/openal-soft
+	url = https://github.com/kcat/openal-soft
