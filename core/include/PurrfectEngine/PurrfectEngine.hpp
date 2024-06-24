@@ -13,6 +13,7 @@
 #include "PurrfectEngine/transform.hpp"
 #include "PurrfectEngine/camera.hpp"
 #include "PurrfectEngine/scene.hpp"
+#include "PurrfectEngine/audio.hpp"
 
 namespace PurrfectEngine {
 

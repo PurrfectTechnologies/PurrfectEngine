@@ -18,6 +18,10 @@
 #define fr_include_path fr_path"include/"
 #define fr_lib_path fr_path"build/"
 
+#define openal_path deps_path"/openal-soft"
+#define openal_include_path openal_path "include/"
+
+
 bool configure_fr() {
   const char *config = 
     "#ifndef   _CONFIG_H_\n"
@@ -30,6 +34,8 @@ bool configure_fr() {
     "#define GLM_PATH \""GLM_path"\"\n\n"
     "// Root path for fr\n"
     "#define FR_PATH \""fr_path"\"\n\n"
+    "// Path to openal-soft\n"
+    "#define OPENAL_PATH \""openal_include_path"\"\n\n"
     "#endif // _CONFIG_H_";
 
   Nob_String_Builder sb = {0};
