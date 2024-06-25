@@ -8,7 +8,7 @@
 namespace PurrfectEngine {
 
   purrAudioEngine::purrAudioEngine():
-    mDevice(nullptr), mContext(nullptr)
+    mDevice(nullptr), mContext(nullptr), reverbEffect(0), effectSlot(0)
   {}
 
   purrAudioEngine::~purrAudioEngine() {
@@ -26,13 +26,29 @@ namespace PurrfectEngine {
     alListener3f(AL_VELOCITY, 0.0f, 0.0f,  0.0f);
     ALfloat listenerOri[] =  {0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f};
     alListenerfv(AL_ORIENTATION, listenerOri);
+
+    if (alcIsExtensionPresent(mDevice, "ALC_EXT_EFX")) {
+      mEFXSupported = true;
+      ALeffectslot(1, &mAuxEffectSlot);
+    }
+
     return true;
   }
 
   void purrAudioEngine::cleanup() {
+    if (effectSlot != 0) {
+      alDeleteAuxiliaryEffectSlots(1, &effectSlot);
+    }
+    if (reverbEffect != 0) {
+      alDeleteEffects(1, &reverbEffect);
+    }
     alcMakeContextCurrent(nullptr);
-    alcDestroyContext(mContext);
-    alcCloseDevice(mDevice);
+    if (mContext != nullptr) {
+      alcDestroyContext(mContext);
+    }
+    if (mDevice != nullptr) {
+      alcCloseDevice(mDevice);
+    }
   }
 
   bool purrAudioEngine::loadSound(const std::string &filename, ALuint &buffer) {
@@ -79,6 +95,7 @@ namespace PurrfectEngine {
     alSource3f(source, AL_POSITION, 0, 0, 0);
     alSource3f(source, AL_VELOCITY, 0, 0, 0);
     alSourcei(source, AL_LOOPING, AL_FALSE);
+    alSource3i(source, AL_AUXILIARY_SEND_FILTER, effectSlot, 0, AL_FILTER_NULL);
 
     alSourcePlay(source);
 
@@ -89,5 +106,24 @@ namespace PurrfectEngine {
 
     alDeleteSources(1, &source);
     return true;
+  }
+
+  void purrAudioEngine::setListenerPosition(float x, float y, float z) {
+    alListener3f(AL_POSITION, x, y, z);
+  }
+
+  void purrAudioEngine::setListenerOrientation(float atX, float atY, float atZ, float upX, float upY, float upZ) {
+    ALfloat listenerOri[] = {atX, atY, atZ, upX, upY, upZ};
+    alListenerfv(AL_ORIENTATION, listenerOri);
+  }
+
+  void purrAudioEngine::setSoundPosition(ALuint source, float x, float y, float z) {
+    alSource3f(source, AL_POSITION, x, y, z);
+  }
+
+  void purrAudioEngine::applyReverb(ALuint source, float gain) {
+    alEffecti(reverbEffect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
+    alEffectf(reverbEffect, AL_REVERB_GAIN, gain);
+    alAuxiliaryEffect
   }
 }
