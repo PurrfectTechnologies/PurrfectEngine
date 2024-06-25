@@ -6,19 +6,22 @@
 #include <string>
 
 namespace PurrfectEngine {
-  class AudioEngine {
+
+  class purrAudioEngine {
   public:
-    AudioEngine();
-    ~AudioEngine();
+    purrAudioEngine();
+    ~purrAudioEngine();
 
-    void init();
-    void loadSound(const std::string& filename, ALuint& buffer);
-    void playSound(ALuint buffer);
+    bool initialize();
+    void cleanup();
 
+    bool loadSound(const std::string& filename, ALuint& buffer);
+    bool playSound(ALuint buffer);
   private:
-    ALCdevice* device;
-    ALCcontext* context;
+    ALCdevice  *mDevice = nullptr;
+    ALCcontext *mContext = nullptr;
   };
+
 }
 
 #endif // PURRFECTENGINE_AUDIO_HPP_

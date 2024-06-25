@@ -17,7 +17,7 @@ namespace PurrfectEngine {
         mSwapchainExtent.height,
         1
       },
-      nullptr, nullptr, false
+      mSampler, nullptr, nullptr, false
     }) == VK_SUCCESS) && (mPipeline->initialize(purrPipelineInitInfo{
       { { VK_SHADER_STAGE_VERTEX_BIT, "../assets/shaders/vert.spv" },
         { VK_SHADER_STAGE_FRAGMENT_BIT, "../assets/shaders/frag.spv" }, },
@@ -29,9 +29,15 @@ namespace PurrfectEngine {
   }
 
   bool purrRenderer3D::initialize_() {
+    mSampler = new purrSampler();
     mRenderTarget = new purrRenderTarget();
     mPipeline = new purrPipeline();
-    return createResources();
+    return ((mSampler->initialize(purrSamplerInitInfo{
+      VK_TRUE,
+      VK_FILTER_LINEAR, VK_FILTER_LINEAR,
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      VK_BORDER_COLOR_INT_OPAQUE_BLACK
+    }) == VK_SUCCESS) && createResources());
   }
 
   bool purrRenderer3D::resize_() {
@@ -45,12 +51,21 @@ namespace PurrfectEngine {
   }
 
   void purrRenderer3D::cleanup_() {
+    delete mSampler;
     delete mRenderTarget;
     delete mPipeline;
   }
 
   VkFormat purrRenderer3D::getRenderTargetFormat() {
     return VK_FORMAT_R16G16B16A16_SFLOAT;
+  }
+
+  VkFormat purrRenderer3D::getHdrFormat() {
+    return VK_FORMAT_R16G16B16A16_SFLOAT;
+  }
+
+  VkFormat purrRenderer3D::getFormat() {
+    return VK_FORMAT_R8G8B8A8_SRGB;
   }
 
   VkSampleCountFlagBits purrRenderer3D::getSampleCount() {

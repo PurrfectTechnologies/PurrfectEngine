@@ -58,6 +58,7 @@ namespace PurrfectEngine {
     friend class purrBuffer;
     friend class purrSampler;
     friend class purrImage;
+    friend class purrTexture;
     friend class purrRenderTarget;
     friend class purrPipeline;
   public:
@@ -80,6 +81,8 @@ namespace PurrfectEngine {
     virtual void cleanup_() = 0;
 
     virtual VkFormat getRenderTargetFormat() = 0;
+    virtual VkFormat getHdrFormat() = 0;
+    virtual VkFormat getFormat() = 0;
     virtual VkSampleCountFlagBits getSampleCount() = 0;
     virtual purrRenderTarget *getRenderTarget() = 0;
   private:
@@ -114,7 +117,10 @@ namespace PurrfectEngine {
     VkPipeline       mPipeline  = VK_NULL_HANDLE;
     VkPipelineLayout mPipelineL = VK_NULL_HANDLE;
     VkCommandPool    mSCommands = VK_NULL_HANDLE;
+    VkDescriptorPool mTextDescs = VK_NULL_HANDLE;
     glm::ivec2       mSwapSize  = {};
+
+    VkDescriptorSetLayout mTextureLayout = VK_NULL_HANDLE;
 
     VkFormat mSwapchainFormat = VK_FORMAT_UNDEFINED;
     VkFormat mDepthFormat = VK_FORMAT_UNDEFINED;
@@ -134,8 +140,16 @@ namespace PurrfectEngine {
 
   class purrBuffer {
   public:
+    purrBuffer();
+    ~purrBuffer();
 
+    VkResult initialize(VkDeviceSize size, VkBufferUsageFlagBits usage, bool local);
+    void cleanup();
+
+    void copy(void *data, VkDeviceSize size, VkDeviceSize offset);
   private:
+    VkBuffer mBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory mMemory = VK_NULL_HANDLE;
   };
 
   struct purrImageInitInfo {
@@ -146,18 +160,16 @@ namespace PurrfectEngine {
     VkImageViewType       viewType;
     VkImageAspectFlagBits aspect;
     VkSampleCountFlagBits samples;
-    bool                  sampled;
   };
 
   class purrImage {
+    friend class purrTexture;
   public:
     purrImage();
     ~purrImage();
 
     VkResult initialize(purrImageInitInfo initInfo);
     void cleanup();
-
-    VkResult createSet(VkSampler sampler); // TODO: Add `purrSampler` class
 
     VkResult copyFromBuffer(purrBuffer *src);
     VkResult copyToBuffer(purrBuffer *dst);
@@ -166,24 +178,89 @@ namespace PurrfectEngine {
     VkResult transitionLayout(VkImageLayout layout, VkPipelineStageFlagBits stage, VkAccessFlags accessFlag);
   public:
     VkImageView getView() const { return mView; }
+    VkImageLayout getLayout() const { return mLayout; }
   private:
     purrImageInitInfo mInitInfo;
   private:
     VkImage         mImage         = VK_NULL_HANDLE;
     VkImageView     mView          = VK_NULL_HANDLE;
     VkDeviceMemory  mMemory        = VK_NULL_HANDLE;
-    VkDescriptorSet mDescriptorSet = VK_NULL_HANDLE;
 
     VkImageLayout mLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkPipelineStageFlagBits mStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     VkAccessFlags mAccessFlag = 0;
   };
 
+  struct purrSamplerInitInfo {
+    VkBool32 anisotropyEnable;
+    VkFilter magFilter;
+    VkFilter minFilter;
+    VkSamplerAddressMode addressModeU;
+    VkSamplerAddressMode addressModeV;
+    VkSamplerAddressMode addressModeW;
+    VkBorderColor borderColor;
+  };
+
+  class purrSampler {
+  public:
+    purrSampler();
+    ~purrSampler();
+
+    VkResult initialize(purrSamplerInitInfo initInfo);
+    void cleanup();
+  public:
+    VkSampler getSampler() const { return mSampler; }
+  private:
+    VkSampler mSampler = VK_NULL_HANDLE;
+  };
+
+  struct purrTextureInitInfo {
+    int width, height;
+    const char *filename;
+    bool hdr;
+    VkFormat format;
+  };
+
+  class purrTexture {
+  public:
+    purrTexture();
+    virtual ~purrTexture() = default;
+  public:
+    VkImageView getView() const { return mImage->getView(); }
+  public:
+    void bind(VkCommandBuffer cmdBuf, uint32_t set);
+  protected:
+    VkResult createTextureSet();
+    void writeImageToSet(VkSampler sampler);
+  protected:
+    purrImage *mImage = nullptr;
+    VkDescriptorSet mSet = VK_NULL_HANDLE;
+  };
+
+  struct purrTexture2DInitInfo {
+    int                   width;
+    int                   height;
+    VkFormat              format;
+    bool                  color;
+    VkSampleCountFlagBits samples;
+    purrSampler          *sampler;
+  };
+
+  class purrTexture2D: public purrTexture {
+  public:
+    purrTexture2D();
+    virtual ~purrTexture2D() override;
+
+    VkResult initialize(purrTexture2DInitInfo initInfo);
+    void cleanup();
+  };
+
   struct purrRenderTargetInitInfo {
-    VkExtent3D extent;
-    purrImage *colorImage; // Can be nullptr to make `purrRenderTarget` create new one.
-    purrImage *depthImage; // Can be nullptr to make `purrRenderTarget` create new one.
-    bool       depth;
+    VkExtent3D   extent;
+    purrSampler *sampler;
+    purrTexture *colorImage;
+    purrTexture *depthImage;
+    bool         depth;
   };
 
   class purrRenderTarget {
@@ -207,8 +284,8 @@ namespace PurrfectEngine {
   struct purrPipelineInitInfo {
     std::vector<std::pair<VkShaderStageFlagBits, const char *>> shaders;
     VkSampleCountFlagBits samples;
-    std::vector<VkVertexInputBindingDescription> bindings; 
-    std::vector<VkVertexInputAttributeDescription> attributes; 
+    std::vector<VkVertexInputBindingDescription> bindings;
+    std::vector<VkVertexInputAttributeDescription> attributes;
     std::vector<VkDescriptorSetLayout> layouts;
     std::vector<VkPushConstantRange> pushConstants;
     purrRenderTarget *target;

@@ -16,9 +16,12 @@ namespace PurrfectEngine {
     virtual void cleanup_()    override;
 
     virtual VkFormat getRenderTargetFormat() override;
+    virtual VkFormat getHdrFormat() override;
+    virtual VkFormat getFormat() override;
     virtual VkSampleCountFlagBits getSampleCount() override;
     virtual purrRenderTarget *getRenderTarget() override;
   private:
+    purrSampler      *mSampler = nullptr;
     purrRenderTarget *mRenderTarget = nullptr;
     purrPipeline     *mPipeline = nullptr;
   };
