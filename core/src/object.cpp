@@ -57,6 +57,16 @@ namespace PurrfectEngine {
     delete mCamera;
   }
 
+  purrAudioComp::purrAudioComp(purrAudioEngine *audioSource):
+    mAudio(audioSource)
+  { assert(audioSource); }
+
+  purrAudioComp::~purrAudioComp() {
+    if (mAudio) {
+      delete mAudio;
+    }
+  }
+
   purrObject::purrObject(purrTransform *transform):
     mTransform(transform)
   {}

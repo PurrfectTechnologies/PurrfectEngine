@@ -78,6 +78,18 @@ namespace PurrfectEngine {
     purrCamera *mCamera = nullptr;
   };
 
+  class purrAudioComp : public purrComponent {
+  public:
+    purrAudioComp(purrAudioEngine *audioSource);
+    virtual ~purrAudioEngine() override;
+
+    virtual const char *getName() override { return "audioComponent"; }
+
+    purrAudioEngine *getAudio() const { return mAudio };
+  private:
+    purrAudioEngine *mAudio = nullptr;
+  }
+
   class purrObject {
   public:
     purrObject(purrTransform *transform = new purrTransform());
@@ -85,6 +97,7 @@ namespace PurrfectEngine {
 
     bool addComponent(purrComponent* component);
     bool addComponent(purrCameraComp* component);
+    bool addComponent(purrAudioComp* component);
     purrComponent *getComponent(const char *name);
     bool removeComponent(const char *name);
 

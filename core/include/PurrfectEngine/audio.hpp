@@ -11,10 +11,9 @@
 #include <vector>
 #include <iostream>
 
-
 namespace PurrfectEngine {
 
-  class purrAudioEngine {
+  class purrAudioEngine: purrExtendable<purrAudioExt> {
   public:
     purrAudioEngine();
     ~purrAudioEngine();
