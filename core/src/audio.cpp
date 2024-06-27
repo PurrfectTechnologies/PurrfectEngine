@@ -8,11 +8,26 @@
 namespace PurrfectEngine {
 
   purrAudioEngine::purrAudioEngine():
-    mDevice(nullptr), mContext(nullptr), reverbEffect(0), effectSlot(0)
+    mDevice(nullptr), mContext(nullptr), mReverbEffect(0), mEffectSlot(0)
   {}
 
   purrAudioEngine::~purrAudioEngine() {
     cleanup();
+  }
+
+  
+
+  bool loadEFXExtensionFunctions() {
+    alGenAuxiliaryEffectSlots = (LPALGENAUXILIARYEFFECTSLOTS)alGetProcAddress("alGenAuxiliaryEffectSlots");
+    alDeleteAuxiliaryEffectSlots = (LPALDELETEAUXILIARYEFFECTSLOTS)alGetProcAddress("alDeleteAuxiliaryEffectSlots");
+    alAuxiliaryEffectSloti = (LPALAUXILIARYEFFECTSLOTI)alGetProcAddress("alAuxiliaryEffectSloti");
+    alGenEffects = (LPALGENEFFECTS)alGetProcAddress("alGenEffects");
+    alDeleteEffects = (LPALDELETEEFFECTS)alGetProcAddress("alDeleteEffects");
+    alEffecti = (LPALEFFECTI)alGetProcAddress("alEffecti");
+    alEffectf = (LPALEFFECTF)alGetProcAddress("alEffectf");
+
+    return alGenAuxiliaryEffectSlots && alDeleteAuxiliaryEffectSlots && alAuxiliaryEffectSloti &&
+          alGenEffects && alDeleteEffects && alEffecti && alEffectf;
   }
 
   bool purrAudioEngine::initialize() {
@@ -27,20 +42,31 @@ namespace PurrfectEngine {
     ALfloat listenerOri[] =  {0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f};
     alListenerfv(AL_ORIENTATION, listenerOri);
 
+    if (!loadEFXExtensionFunctions()) {
+      std::cerr << "Failed to load EFX extension functions!" << std::endl;
+      return false;
+    }
+
     if (alcIsExtensionPresent(mDevice, "ALC_EXT_EFX")) {
       mEFXSupported = true;
-      ALeffectslot(1, &mAuxEffectSlot);
+      alGenAuxiliaryEffectSlots(1, &mEffectSlot);
+      alGenEffects(1, &mReverbEffect);
+    } else {
+      mEFXSupported = false;
+      std::cerr << "EFX not supported! Exiting." << std::endl;
+      cleanup();
+      return false;
     }
 
     return true;
   }
 
   void purrAudioEngine::cleanup() {
-    if (effectSlot != 0) {
-      alDeleteAuxiliaryEffectSlots(1, &effectSlot);
+    if (mEffectSlot != 0) {
+      alDeleteAuxiliaryEffectSlots(1, &mEffectSlot);
     }
-    if (reverbEffect != 0) {
-      alDeleteEffects(1, &reverbEffect);
+    if (mReverbEffect != 0) {
+      alDeleteEffects(1, &mReverbEffect);
     }
     alcMakeContextCurrent(nullptr);
     if (mContext != nullptr) {
@@ -51,7 +77,7 @@ namespace PurrfectEngine {
     }
   }
 
-  bool purrAudioEngine::loadSound(const std::string &filename, ALuint &buffer) {
+  bool purrAudioEngine::load(const std::string &filename, ALuint &buffer) {
     std::string extension = filename.substr(filename.find_last_of(".") + 1);
 
     if (extension == "mp3") {
@@ -85,7 +111,7 @@ namespace PurrfectEngine {
     return true;
   }
 
-  bool purrAudioEngine::playSound(ALuint buffer) {
+  bool purrAudioEngine::play(ALuint buffer) {
     ALuint source;
     alGenSources(1, &source);
 
@@ -95,7 +121,10 @@ namespace PurrfectEngine {
     alSource3f(source, AL_POSITION, 0, 0, 0);
     alSource3f(source, AL_VELOCITY, 0, 0, 0);
     alSourcei(source, AL_LOOPING, AL_FALSE);
-    alSource3i(source, AL_AUXILIARY_SEND_FILTER, effectSlot, 0, AL_FILTER_NULL);
+
+    if (mEFXSupported) {
+      alSource3i(source, AL_AUXILIARY_SEND_FILTER, mAuxEffectSlot, 0, AL_FILTER_NULL);
+    }
 
     alSourcePlay(source);
 
@@ -106,6 +135,33 @@ namespace PurrfectEngine {
 
     alDeleteSources(1, &source);
     return true;
+  }
+
+  void purrAudioEngine::pause(ALuint source) {
+    alSourcePause(source);
+  }
+
+  void purrAudioEngine::resume(ALuint source) {
+    ALint state;
+    alGetSourcei(source, AL_SOURCE_STATE, &state);
+    if (state = AL_PAUSED) {
+      alSourcePlay(source)''
+    }
+  }
+
+  void purrAudioEngine::stop(ALuint source) {
+    alSourceStop(source);
+    alSourcei(source, AL_BUFFER, 0);
+  }
+
+  void purrAudioEngine::replay(ALuint source) {
+    alSourceRewind(source);
+    alSourcePlay(source);
+  }
+
+  void purrAudioEngine::playSoundFromTime(ALuint source, float seconds) {
+    alSourcef(source, AL_SEC_OFFSET, seconds);
+    alSourcePlay(source);
   }
 
   void purrAudioEngine::setListenerPosition(float x, float y, float z) {
@@ -121,9 +177,17 @@ namespace PurrfectEngine {
     alSource3f(source, AL_POSITION, x, y, z);
   }
 
-  void purrAudioEngine::applyReverb(ALuint source, float gain) {
-    alEffecti(reverbEffect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
-    alEffectf(reverbEffect, AL_REVERB_GAIN, gain);
-    alAuxiliaryEffect
+  void purrAudioEngine::setReverb(ALuint source, float gain) {
+    alEffecti(mReverbEffect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
+    alEffectf(mReverbEffect, AL_REVERB_GAIN, gain);
+    alAuxiliaryEffectSloti(mEffectSlot, AL_EFFECTSLOT_EFFECT, mReverbEffect);
+  }
+
+  void purrAudioEngine::setPitch(ALuint source, float pitch) {
+    alSourcef(source, AL_PITCH, pitch);
+  }
+
+  void purrAudioEngine::setGain(ALuint source, float gain) {
+    alSourcef(source, AL_GAIN, gain);
   }
 }
