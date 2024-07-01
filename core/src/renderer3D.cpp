@@ -19,8 +19,8 @@ namespace PurrfectEngine {
       },
       mSampler, nullptr, nullptr, false
     }) == VK_SUCCESS) && (mPipeline->initialize(purrPipelineInitInfo{
-      { { VK_SHADER_STAGE_VERTEX_BIT, "../assets/shaders/vert.spv" },
-        { VK_SHADER_STAGE_FRAGMENT_BIT, "../assets/shaders/frag.spv" }, },
+      { { VK_SHADER_STAGE_VERTEX_BIT, "./assets/shaders/shader_v.spv" },
+        { VK_SHADER_STAGE_FRAGMENT_BIT, "./assets/shaders/shader_f.spv" }, },
       getSampleCount(),
       {}, {},
       {}, {},

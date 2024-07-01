@@ -11,6 +11,8 @@ add_subdirectory(dependencies/glm)
 add_subdirectory(dependencies/json)
 
 set(BUILD_SHARED_LIBS OFF)
+set(ASSIMP_INSTALL OFF)
+set(ASSIMP_BUILD_TESTS OFF)
 add_subdirectory(dependencies/assimp)
 
 set(KTX_FEATURE_TESTS OFF)

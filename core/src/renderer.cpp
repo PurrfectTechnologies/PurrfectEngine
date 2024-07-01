@@ -352,8 +352,8 @@ namespace PurrfectEngine {
     }
 
     { // Pipeline
-      std::vector<char> vertShaderCode = Utils::ReadFile("../assets/shaders/vert.spv");
-      std::vector<char> fragShaderCode = Utils::ReadFile("../assets/shaders/frag.spv");
+      std::vector<char> vertShaderCode = Utils::ReadFile("./assets/shaders/shader_v.spv");
+      std::vector<char> fragShaderCode = Utils::ReadFile("./assets/shaders/shader_f.spv");
 
       VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
       if (!vertShaderModule) return false;
