@@ -351,6 +351,28 @@ namespace PurrfectEngine {
       }
     }
 
+    { // Texture descriptor layout
+      VkDescriptorSetLayoutBinding binding{};
+      binding.binding = 0;
+      binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+      binding.descriptorCount = 1;
+      binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+      binding.pImmutableSamplers = VK_NULL_HANDLE;
+
+      VkDescriptorSetLayoutCreateInfo createInfo{};
+      createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+      createInfo.pNext = VK_NULL_HANDLE;
+      createInfo.flags = 0;
+      createInfo.bindingCount = 1;
+      createInfo.pBindings = &binding;
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkCreateDescriptorSetLayout(mDevice, &createInfo, VK_NULL_HANDLE, &mTextureLayout)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+    }
+
     { // Pipeline
       std::vector<char> vertShaderCode = Utils::ReadFile("./assets/shaders/shader_v.spv");
       std::vector<char> fragShaderCode = Utils::ReadFile("./assets/shaders/shader_f.spv");
@@ -431,7 +453,8 @@ namespace PurrfectEngine {
 
       VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
       pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      pipelineLayoutInfo.setLayoutCount = 0;
+      pipelineLayoutInfo.setLayoutCount = 1;
+      pipelineLayoutInfo.pSetLayouts = &mTextureLayout;
       pipelineLayoutInfo.pushConstantRangeCount = 0;
 
       VkResult result = VK_SUCCESS;
@@ -493,28 +516,6 @@ namespace PurrfectEngine {
 
       VkResult result = VK_SUCCESS;
       if ((result = vkCreateDescriptorPool(mDevice, &createInfo, VK_NULL_HANDLE, &mTextDescs)) != VK_SUCCESS) {
-        mError = string_VkResult(result);
-        return false;
-      }
-    }
-
-    {
-      VkDescriptorSetLayoutBinding binding{};
-      binding.binding = 0;
-      binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      binding.descriptorCount = 1;
-      binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-      binding.pImmutableSamplers = VK_NULL_HANDLE;
-
-      VkDescriptorSetLayoutCreateInfo createInfo{};
-      createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-      createInfo.pNext = VK_NULL_HANDLE;
-      createInfo.flags = 0;
-      createInfo.bindingCount = 1;
-      createInfo.pBindings = &binding;
-
-      VkResult result = VK_SUCCESS;
-      if ((result = vkCreateDescriptorSetLayout(mDevice, &createInfo, VK_NULL_HANDLE, &mTextureLayout)) != VK_SUCCESS) {
         mError = string_VkResult(result);
         return false;
       }
@@ -900,6 +901,10 @@ namespace PurrfectEngine {
   }
 
   bool purrOffscreenRendererExt::preUpdate() {
+    return true;
+  }
+
+  bool purrOffscreenRendererExt::update() {
     purrRenderer *renderer = purrRenderer::getInstance();
 
     VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
@@ -931,14 +936,11 @@ namespace PurrfectEngine {
     scissor.extent = renderer->mSwapchainExtent;
     vkCmdSetScissor(mCmdBuf, 0, 1, &scissor);
 
+    renderer->getRenderTarget()->getColor()->bind(mCmdBuf, renderer->mPipelineL, 0);
     vkCmdDraw(mCmdBuf, 6, 1, 0, 0);
 
     vkCmdEndRenderPass(mCmdBuf);
 
-    return true;
-  }
-
-  bool purrOffscreenRendererExt::update() {
     return true;
   }
 
@@ -1129,8 +1131,12 @@ namespace PurrfectEngine {
 
   }
 
-  void purrTexture::bind(VkCommandBuffer cmdBuf, uint32_t set) {
+  void purrTexture::bind(VkCommandBuffer cmdBuf, VkPipelineLayout layout, uint32_t set) {
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, set, 1, &mSet, 0, NULL);
+  }
 
+  void purrTexture::bind(VkCommandBuffer cmdBuf, purrPipeline *pipeline, uint32_t set) {
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getLayout(), set, 1, &mSet, 0, NULL);
   }
 
   VkResult purrTexture::createTextureSet() {

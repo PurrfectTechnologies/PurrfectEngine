@@ -47,6 +47,13 @@ namespace PurrfectEngine {
   }
 
   bool purrRenderer3D::render_(VkCommandBuffer cmdBuf) {
+    mRenderTarget->begin(cmdBuf);
+    mPipeline->bind(cmdBuf);
+
+
+
+    mRenderTarget->end(cmdBuf);
+
     return true;
   }
 

@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
         nob_sb_free(sb);
       }
     } else {
-      while (argc > 0) {
+      do {
         if (strcmp(flag, "build") == 0) {
           if (!cmake_build()) return 1;
         } else if (strcmp(flag, "shaders") == 0) {
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
           nob_log(NOB_WARNING, "Unknown flag \"%s\", skipping!", flag);
         }
         flag = (argc>0?nob_shift_args(&argc, &argv):NULL);
-      }
+      } while (argc > 0);
     }
   } else {
     if (!cmake_build()) return 1;
