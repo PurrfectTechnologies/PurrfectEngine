@@ -3,7 +3,7 @@
 namespace PurrfectEngine {
 
   purrRenderer3D::purrRenderer3D():
-    purrRenderer({})
+    purrRenderer({ new purrOffscreenRendererExt() })
   {}
 
   purrRenderer3D::~purrRenderer3D() {
@@ -19,10 +19,10 @@ namespace PurrfectEngine {
       },
       mSampler, nullptr, nullptr, false
     }) == VK_SUCCESS) && (mPipeline->initialize(purrPipelineInitInfo{
-      { { VK_SHADER_STAGE_VERTEX_BIT, "./assets/shaders/shader_v.spv" },
-        { VK_SHADER_STAGE_FRAGMENT_BIT, "./assets/shaders/shader_f.spv" }, },
+      { { VK_SHADER_STAGE_VERTEX_BIT, "./assets/shaders/scene_v.spv" },
+        { VK_SHADER_STAGE_FRAGMENT_BIT, "./assets/shaders/scene_f.spv" }, },
       getSampleCount(),
-      {}, {},
+      purrVertex3D::getBindings(), purrVertex3D::getAttributes(),
       {}, {},
       mRenderTarget,
     }) == VK_SUCCESS));
@@ -46,7 +46,7 @@ namespace PurrfectEngine {
     return createResources();
   }
 
-  bool purrRenderer3D::render_() {
+  bool purrRenderer3D::render_(VkCommandBuffer cmdBuf) {
     return true;
   }
 

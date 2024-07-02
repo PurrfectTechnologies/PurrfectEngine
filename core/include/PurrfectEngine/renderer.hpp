@@ -35,7 +35,12 @@ namespace PurrfectEngine {
     virtual bool preUpdate()  = 0;
     virtual bool update()     = 0;
     virtual void cleanup()    = 0;
-  private:
+
+    void beginFrame(VkCommandBuffer cmdBuf, uint32_t imageIndex) { mCmdBuf = cmdBuf; mImageIndex = imageIndex; }
+    void endFrame() { mCmdBuf = VK_NULL_HANDLE; mImageIndex = 0; }
+  protected:
+    VkCommandBuffer mCmdBuf = VK_NULL_HANDLE;
+    uint32_t mImageIndex = 0;
   };
 
   struct purrRendererSwapchainInfo {
@@ -61,6 +66,8 @@ namespace PurrfectEngine {
     friend class purrTexture;
     friend class purrRenderTarget;
     friend class purrPipeline;
+    // Extensions
+    friend class purrOffscreenRendererExt;
   public:
     purrRenderer(std::vector<purrRendererExt*> extensions);
     ~purrRenderer();
@@ -77,7 +84,7 @@ namespace PurrfectEngine {
   private:
     virtual bool initialize_() = 0;
     virtual bool resize_() = 0;
-    virtual bool render_() = 0;
+    virtual bool render_(VkCommandBuffer cmdBuf) = 0;
     virtual void cleanup_() = 0;
 
     virtual VkFormat getRenderTargetFormat() = 0;
@@ -134,8 +141,22 @@ namespace PurrfectEngine {
     uint32_t mImageCount = 0;
     uint32_t mFramesInFlight = 0;
     uint32_t mFrame = 0;
+  protected:
+    purrRenderTarget *mSwapchainRenderTarget = nullptr;
   private:
     inline static purrRenderer *sInstance = nullptr;
+  };
+
+  class purrOffscreenRendererExt: public purrRendererExt {
+  public:
+    purrOffscreenRendererExt();
+    ~purrOffscreenRendererExt();
+
+    virtual bool initialize() override;
+    virtual bool preUpdate()  override;
+    virtual bool update()     override;
+    virtual void cleanup()    override;
+  private:
   };
 
   class purrBuffer {

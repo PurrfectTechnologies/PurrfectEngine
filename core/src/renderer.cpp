@@ -546,12 +546,10 @@ namespace PurrfectEngine {
 
     vkResetFences(mDevice, 1, &mFFences[mFrame]);
 
-    if (!render_()) return false;
-
     VkCommandBuffer cmdBuf = mRCommands[mFrame];
     vkResetCommandBuffer(cmdBuf, 0);
 
-    { // Record command buffer
+    { // Begin command buffer
       VkCommandBufferBeginInfo beginInfo{};
       beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
       beginInfo.flags = 0;
@@ -562,42 +560,15 @@ namespace PurrfectEngine {
         mError = string_VkResult(result);
         return false;
       }
-
-      VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-
-      VkRenderPassBeginInfo renderPassInfo{};
-      renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      renderPassInfo.renderPass = mRP;
-      renderPassInfo.framebuffer = mSwapchainFramebuffers[imageIndex];
-      renderPassInfo.renderArea.offset = {0,0};
-      renderPassInfo.renderArea.extent = mSwapchainExtent;
-      renderPassInfo.clearValueCount = 1;
-      renderPassInfo.pClearValues = &clearColor;
-
-      vkCmdBeginRenderPass(cmdBuf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-      vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
-
-      VkViewport viewport{};
-      viewport.x        = 0.0f;
-      viewport.y        = 0.0f;
-      viewport.width    = static_cast<float>(mSwapchainExtent.width);
-      viewport.height   = static_cast<float>(mSwapchainExtent.height);
-      viewport.minDepth = 0.0f;
-      viewport.maxDepth = 1.0f;
-      vkCmdSetViewport(cmdBuf, 0, 1, &viewport);
-
-      VkRect2D scissor{};
-      scissor.offset = {0, 0};
-      scissor.extent = mSwapchainExtent;
-      vkCmdSetScissor(cmdBuf, 0, 1, &scissor);
-
-      vkCmdDraw(cmdBuf, 6, 1, 0, 0);
-
-      vkCmdEndRenderPass(cmdBuf);
-
-      vkEndCommandBuffer(cmdBuf);
     }
+
+    for (purrRendererExt *ext: getExtensions()) ext->beginFrame(cmdBuf, imageIndex);
+    if (!extsPreUpdate()) return false;
+    if (!render_(cmdBuf)) return false;
+    if (!extsUpdate()) return false;
+    for (purrRendererExt *ext: getExtensions()) ext->endFrame();
+
+    vkEndCommandBuffer(cmdBuf);
 
     { // Submit
       VkPipelineStageFlags dstStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -646,6 +617,7 @@ namespace PurrfectEngine {
 
   void purrRenderer::cleanup() {
     cleanup_();
+    extsCleanup();
 
     cleanupSwapchain();
 
@@ -916,6 +888,64 @@ namespace PurrfectEngine {
     vkFreeCommandBuffers(mDevice, mSCommands, 1, &cmdBuf);
   }
 
+  purrOffscreenRendererExt::purrOffscreenRendererExt()
+  {}
+
+  purrOffscreenRendererExt::~purrOffscreenRendererExt() {
+
+  }
+
+  bool purrOffscreenRendererExt::initialize() {
+    return true;
+  }
+
+  bool purrOffscreenRendererExt::preUpdate() {
+    purrRenderer *renderer = purrRenderer::getInstance();
+
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderer->mRP;
+    renderPassInfo.framebuffer = renderer->mSwapchainFramebuffers[mImageIndex];
+    renderPassInfo.renderArea.offset = {0,0};
+    renderPassInfo.renderArea.extent = renderer->mSwapchainExtent;
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+
+    vkCmdBeginRenderPass(mCmdBuf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(mCmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->mPipeline);
+
+    VkViewport viewport{};
+    viewport.x        = 0.0f;
+    viewport.y        = 0.0f;
+    viewport.width    = static_cast<float>(renderer->mSwapchainExtent.width);
+    viewport.height   = static_cast<float>(renderer->mSwapchainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(mCmdBuf, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = renderer->mSwapchainExtent;
+    vkCmdSetScissor(mCmdBuf, 0, 1, &scissor);
+
+    vkCmdDraw(mCmdBuf, 6, 1, 0, 0);
+
+    vkCmdEndRenderPass(mCmdBuf);
+
+    return true;
+  }
+
+  bool purrOffscreenRendererExt::update() {
+    return true;
+  }
+
+  void purrOffscreenRendererExt::cleanup() {
+
+  }
+
   purrBuffer::purrBuffer()
   {}
 
@@ -1096,7 +1126,7 @@ namespace PurrfectEngine {
   }
 
   purrTexture::purrTexture() {
-    
+
   }
 
   void purrTexture::bind(VkCommandBuffer cmdBuf, uint32_t set) {
