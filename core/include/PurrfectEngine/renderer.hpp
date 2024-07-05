@@ -166,6 +166,9 @@ namespace PurrfectEngine {
     void cleanup();
 
     void copy(void *data, VkDeviceSize size, VkDeviceSize offset);
+    VkResult copy(purrBuffer *src, VkDeviceSize size, VkDeviceSize offset);
+  public:
+    VkBuffer get() const { return mBuffer; }
   private:
     VkBuffer mBuffer = VK_NULL_HANDLE;
     VkDeviceMemory mMemory = VK_NULL_HANDLE;

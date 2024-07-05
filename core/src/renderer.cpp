@@ -617,8 +617,8 @@ namespace PurrfectEngine {
   }
 
   void purrRenderer::cleanup() {
-    cleanup_();
     extsCleanup();
+    cleanup_();
 
     cleanupSwapchain();
 
@@ -952,7 +952,7 @@ namespace PurrfectEngine {
   {}
 
   purrBuffer::~purrBuffer() {
-
+    cleanup();
   }
 
   VkResult purrBuffer::initialize(VkDeviceSize size, VkBufferUsageFlagBits usage, bool local) {
@@ -963,7 +963,7 @@ namespace PurrfectEngine {
     bufferInfo.pNext                 = VK_NULL_HANDLE;
     bufferInfo.flags                 = 0;
     bufferInfo.size                  = size;
-    bufferInfo.usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferInfo.usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage;
     bufferInfo.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
     bufferInfo.queueFamilyIndexCount = 0;
     bufferInfo.pQueueFamilyIndices   = VK_NULL_HANDLE;
@@ -986,16 +986,32 @@ namespace PurrfectEngine {
 
   void purrBuffer::cleanup() {
     purrRenderer *renderer = purrRenderer::getInstance();
-
     vkDestroyBuffer(renderer->mDevice, mBuffer, VK_NULL_HANDLE);
+    vkFreeMemory(renderer->mDevice, mMemory, VK_NULL_HANDLE);
   }
 
   void purrBuffer::copy(void *data, VkDeviceSize size, VkDeviceSize offset) {
     purrRenderer *renderer = purrRenderer::getInstance();
     void *pData = nullptr;
-    vkMapMemory(renderer->mDevice, mMemory, offset, size, 0, &data);
+    vkMapMemory(renderer->mDevice, mMemory, offset, size, 0, &pData);
     memcpy(pData, data, size);
     vkUnmapMemory(renderer->mDevice, mMemory);
+  }
+
+  VkResult purrBuffer::copy(purrBuffer *src, VkDeviceSize size, VkDeviceSize offset) {
+    purrRenderer *renderer = purrRenderer::getInstance();
+    VkCommandBuffer cmdBuf = renderer->BeginSingleTime();
+
+    VkBufferCopy region = {};
+    region.srcOffset = offset;
+    region.dstOffset = offset;
+    region.size = size;
+
+    vkCmdCopyBuffer(cmdBuf, src->mBuffer, mBuffer, 1, &region);
+
+    renderer->EndSingleTime(cmdBuf);
+
+    return VK_SUCCESS;
   }
 
   purrImage::purrImage()
@@ -1052,7 +1068,7 @@ namespace PurrfectEngine {
     viewInfo.components.b     = VK_COMPONENT_SWIZZLE_IDENTITY;
     viewInfo.components.a     = VK_COMPONENT_SWIZZLE_IDENTITY;
     viewInfo.subresourceRange = {
-      initInfo.aspect, 0, 1, 0, initInfo.arrayLayers
+      (VkImageAspectFlags)initInfo.aspect, 0, 1, 0, initInfo.arrayLayers
     };
 
     return vkCreateImageView(renderer->mDevice, &viewInfo, VK_NULL_HANDLE, &mView);
@@ -1321,8 +1337,8 @@ namespace PurrfectEngine {
     purrRenderer *renderer = purrRenderer::getInstance();
 
     VkClearValue *clearValues = (VkClearValue*)malloc(sizeof(VkClearValue)*(mInitInfo.depth+1));
-    clearValues[0] = ((VkClearValue){{{0.0f,0.0f,0.0f,1.0}}});
-    if (mInitInfo.depth) clearValues[1] = ((VkClearValue){{0.0f,1.0f}});
+    clearValues[0] = (VkClearValue{{{0.0f,0.0f,0.0f,1.0}}});
+    if (mInitInfo.depth) clearValues[1] = (VkClearValue{{0.0f,1.0f}});
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1334,6 +1350,21 @@ namespace PurrfectEngine {
     renderPassInfo.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(cmdBuf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    VkViewport viewport{};
+    viewport.x        = 0.0f;
+    viewport.y        = 0.0f;
+    viewport.width    = static_cast<float>(mInitInfo.extent.width);
+    viewport.height   = static_cast<float>(mInitInfo.extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmdBuf, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent.width  = mInitInfo.extent.width;
+    scissor.extent.height = mInitInfo.extent.height;
+    vkCmdSetScissor(cmdBuf, 0, 1, &scissor);
 
     free(clearValues);
   }

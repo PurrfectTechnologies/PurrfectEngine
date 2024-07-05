@@ -27,10 +27,39 @@ namespace PurrfectEngine {
     }
   };
 
+  class purrMesh3D {
+  public:
+    purrMesh3D();
+    ~purrMesh3D();
+
+    bool initialize();
+    void cleanup();
+
+    void render(VkCommandBuffer cmdBuf);
+
+    bool copy(std::vector<purrVertex3D> &vertices,
+              std::vector<uint32_t>     &indices);
+  private:
+    uint32_t mIndexCount = 0;
+    purrBuffer *mVBuffer = nullptr;
+    purrBuffer *mIBuffer = nullptr;
+  };
+
+  class purrModel3D {
+  public:
+    static bool load(const char *filename, purrMesh3D ***meshes, size_t *meshCount);
+  };
+
+  struct purrObject3D {
+    glm::mat4 model;
+  };
+
   class purrRenderer3D: public purrRenderer {
   public:
     purrRenderer3D();
-    ~purrRenderer3D();
+
+    bool setObjectList(std::vector<purrObject3D> objects);
+    bool updateCamera(purrCamera *camera);
   private:
     bool createResources();
   private:
@@ -45,6 +74,14 @@ namespace PurrfectEngine {
     virtual VkSampleCountFlagBits getSampleCount() override;
     virtual purrRenderTarget *getRenderTarget()    override;
   private:
+    VkDescriptorSetLayout mSceneLayout    = VK_NULL_HANDLE; // Layout for objectBuffer and camera UBO.
+    VkDescriptorPool      mDescriptorPool = VK_NULL_HANDLE;
+    VkDescriptorSet       mSceneSet       = VK_NULL_HANDLE;
+
+    purrBuffer *mCameraBuffer = nullptr;
+    purrBuffer *mObjectsBuffer = nullptr;
+  private:
+    purrMesh3D       *mMesh = nullptr;
     purrSampler      *mSampler = nullptr;
     purrRenderTarget *mRenderTarget = nullptr;
     purrPipeline     *mPipeline = nullptr;
