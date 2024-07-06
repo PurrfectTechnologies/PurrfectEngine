@@ -9,7 +9,10 @@
 #include <AL/efx-presets.h>
 #include <string>
 #include <vector>
-#include <iostream>
+#include <map>
+#include <memory>
+
+class purrAudioFilter;
 
 namespace PurrfectEngine {
 
@@ -111,7 +114,7 @@ namespace PurrfectEngine {
     static void setTrebleLevel(ALuint source, float level);
     static void applyEchoEffect(ALuint source, float delay, float feedback);
     static void applyFlangEffect(ALuint source, float rate, float depth);
-  }
+  };
 }
 
 #endif // PURRFECTENGINE_AUDIO_HPP_
