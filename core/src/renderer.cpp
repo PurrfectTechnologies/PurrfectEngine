@@ -351,9 +351,31 @@ namespace PurrfectEngine {
       }
     }
 
+    { // Texture descriptor layout
+      VkDescriptorSetLayoutBinding binding{};
+      binding.binding = 0;
+      binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+      binding.descriptorCount = 1;
+      binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+      binding.pImmutableSamplers = VK_NULL_HANDLE;
+
+      VkDescriptorSetLayoutCreateInfo createInfo{};
+      createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+      createInfo.pNext = VK_NULL_HANDLE;
+      createInfo.flags = 0;
+      createInfo.bindingCount = 1;
+      createInfo.pBindings = &binding;
+
+      VkResult result = VK_SUCCESS;
+      if ((result = vkCreateDescriptorSetLayout(mDevice, &createInfo, VK_NULL_HANDLE, &mTextureLayout)) != VK_SUCCESS) {
+        mError = string_VkResult(result);
+        return false;
+      }
+    }
+
     { // Pipeline
-      std::vector<char> vertShaderCode = Utils::ReadFile("../assets/shaders/vert.spv");
-      std::vector<char> fragShaderCode = Utils::ReadFile("../assets/shaders/frag.spv");
+      std::vector<char> vertShaderCode = Utils::ReadFile("./assets/shaders/shader_v.spv");
+      std::vector<char> fragShaderCode = Utils::ReadFile("./assets/shaders/shader_f.spv");
 
       VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
       if (!vertShaderModule) return false;
@@ -431,7 +453,8 @@ namespace PurrfectEngine {
 
       VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
       pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      pipelineLayoutInfo.setLayoutCount = 0;
+      pipelineLayoutInfo.setLayoutCount = 1;
+      pipelineLayoutInfo.pSetLayouts = &mTextureLayout;
       pipelineLayoutInfo.pushConstantRangeCount = 0;
 
       VkResult result = VK_SUCCESS;
@@ -498,28 +521,6 @@ namespace PurrfectEngine {
       }
     }
 
-    {
-      VkDescriptorSetLayoutBinding binding{};
-      binding.binding = 0;
-      binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-      binding.descriptorCount = 1;
-      binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-      binding.pImmutableSamplers = VK_NULL_HANDLE;
-
-      VkDescriptorSetLayoutCreateInfo createInfo{};
-      createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-      createInfo.pNext = VK_NULL_HANDLE;
-      createInfo.flags = 0;
-      createInfo.bindingCount = 1;
-      createInfo.pBindings = &binding;
-
-      VkResult result = VK_SUCCESS;
-      if ((result = vkCreateDescriptorSetLayout(mDevice, &createInfo, VK_NULL_HANDLE, &mTextureLayout)) != VK_SUCCESS) {
-        mError = string_VkResult(result);
-        return false;
-      }
-    }
-
     mSwapchainInfo = initInfo.swapchainInfo;
 
     mDepthFormat = FindSupportedFormat({ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
@@ -546,12 +547,10 @@ namespace PurrfectEngine {
 
     vkResetFences(mDevice, 1, &mFFences[mFrame]);
 
-    if (!render_()) return false;
-
     VkCommandBuffer cmdBuf = mRCommands[mFrame];
     vkResetCommandBuffer(cmdBuf, 0);
 
-    { // Record command buffer
+    { // Begin command buffer
       VkCommandBufferBeginInfo beginInfo{};
       beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
       beginInfo.flags = 0;
@@ -562,42 +561,15 @@ namespace PurrfectEngine {
         mError = string_VkResult(result);
         return false;
       }
-
-      VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-
-      VkRenderPassBeginInfo renderPassInfo{};
-      renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-      renderPassInfo.renderPass = mRP;
-      renderPassInfo.framebuffer = mSwapchainFramebuffers[imageIndex];
-      renderPassInfo.renderArea.offset = {0,0};
-      renderPassInfo.renderArea.extent = mSwapchainExtent;
-      renderPassInfo.clearValueCount = 1;
-      renderPassInfo.pClearValues = &clearColor;
-
-      vkCmdBeginRenderPass(cmdBuf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-      vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
-
-      VkViewport viewport{};
-      viewport.x        = 0.0f;
-      viewport.y        = 0.0f;
-      viewport.width    = static_cast<float>(mSwapchainExtent.width);
-      viewport.height   = static_cast<float>(mSwapchainExtent.height);
-      viewport.minDepth = 0.0f;
-      viewport.maxDepth = 1.0f;
-      vkCmdSetViewport(cmdBuf, 0, 1, &viewport);
-
-      VkRect2D scissor{};
-      scissor.offset = {0, 0};
-      scissor.extent = mSwapchainExtent;
-      vkCmdSetScissor(cmdBuf, 0, 1, &scissor);
-
-      vkCmdDraw(cmdBuf, 6, 1, 0, 0);
-
-      vkCmdEndRenderPass(cmdBuf);
-
-      vkEndCommandBuffer(cmdBuf);
     }
+
+    for (purrRendererExt *ext: getExtensions()) ext->beginFrame(cmdBuf, imageIndex);
+    if (!extsPreUpdate()) return false;
+    if (!render_(cmdBuf)) return false;
+    if (!extsUpdate()) return false;
+    for (purrRendererExt *ext: getExtensions()) ext->endFrame();
+
+    vkEndCommandBuffer(cmdBuf);
 
     { // Submit
       VkPipelineStageFlags dstStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -645,6 +617,7 @@ namespace PurrfectEngine {
   }
 
   void purrRenderer::cleanup() {
+    extsCleanup();
     cleanup_();
 
     cleanupSwapchain();
@@ -916,11 +889,70 @@ namespace PurrfectEngine {
     vkFreeCommandBuffers(mDevice, mSCommands, 1, &cmdBuf);
   }
 
+  purrOffscreenRendererExt::purrOffscreenRendererExt()
+  {}
+
+  purrOffscreenRendererExt::~purrOffscreenRendererExt() {
+
+  }
+
+  bool purrOffscreenRendererExt::initialize() {
+    return true;
+  }
+
+  bool purrOffscreenRendererExt::preUpdate() {
+    return true;
+  }
+
+  bool purrOffscreenRendererExt::update() {
+    purrRenderer *renderer = purrRenderer::getInstance();
+
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderer->mRP;
+    renderPassInfo.framebuffer = renderer->mSwapchainFramebuffers[mImageIndex];
+    renderPassInfo.renderArea.offset = {0,0};
+    renderPassInfo.renderArea.extent = renderer->mSwapchainExtent;
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+
+    vkCmdBeginRenderPass(mCmdBuf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(mCmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, renderer->mPipeline);
+
+    VkViewport viewport{};
+    viewport.x        = 0.0f;
+    viewport.y        = 0.0f;
+    viewport.width    = static_cast<float>(renderer->mSwapchainExtent.width);
+    viewport.height   = static_cast<float>(renderer->mSwapchainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(mCmdBuf, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = renderer->mSwapchainExtent;
+    vkCmdSetScissor(mCmdBuf, 0, 1, &scissor);
+
+    renderer->getRenderTarget()->getColor()->bind(mCmdBuf, renderer->mPipelineL, 0);
+    vkCmdDraw(mCmdBuf, 6, 1, 0, 0);
+
+    vkCmdEndRenderPass(mCmdBuf);
+
+    return true;
+  }
+
+  void purrOffscreenRendererExt::cleanup() {
+
+  }
+
   purrBuffer::purrBuffer()
   {}
 
   purrBuffer::~purrBuffer() {
-
+    cleanup();
   }
 
   VkResult purrBuffer::initialize(VkDeviceSize size, VkBufferUsageFlagBits usage, bool local) {
@@ -931,7 +963,7 @@ namespace PurrfectEngine {
     bufferInfo.pNext                 = VK_NULL_HANDLE;
     bufferInfo.flags                 = 0;
     bufferInfo.size                  = size;
-    bufferInfo.usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferInfo.usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage;
     bufferInfo.sharingMode           = VK_SHARING_MODE_EXCLUSIVE;
     bufferInfo.queueFamilyIndexCount = 0;
     bufferInfo.pQueueFamilyIndices   = VK_NULL_HANDLE;
@@ -954,16 +986,32 @@ namespace PurrfectEngine {
 
   void purrBuffer::cleanup() {
     purrRenderer *renderer = purrRenderer::getInstance();
-
     vkDestroyBuffer(renderer->mDevice, mBuffer, VK_NULL_HANDLE);
+    vkFreeMemory(renderer->mDevice, mMemory, VK_NULL_HANDLE);
   }
 
   void purrBuffer::copy(void *data, VkDeviceSize size, VkDeviceSize offset) {
     purrRenderer *renderer = purrRenderer::getInstance();
     void *pData = nullptr;
-    vkMapMemory(renderer->mDevice, mMemory, offset, size, 0, &data);
+    vkMapMemory(renderer->mDevice, mMemory, offset, size, 0, &pData);
     memcpy(pData, data, size);
     vkUnmapMemory(renderer->mDevice, mMemory);
+  }
+
+  VkResult purrBuffer::copy(purrBuffer *src, VkDeviceSize size, VkDeviceSize offset) {
+    purrRenderer *renderer = purrRenderer::getInstance();
+    VkCommandBuffer cmdBuf = renderer->BeginSingleTime();
+
+    VkBufferCopy region = {};
+    region.srcOffset = offset;
+    region.dstOffset = offset;
+    region.size = size;
+
+    vkCmdCopyBuffer(cmdBuf, src->mBuffer, mBuffer, 1, &region);
+
+    renderer->EndSingleTime(cmdBuf);
+
+    return VK_SUCCESS;
   }
 
   purrImage::purrImage()
@@ -1020,7 +1068,7 @@ namespace PurrfectEngine {
     viewInfo.components.b     = VK_COMPONENT_SWIZZLE_IDENTITY;
     viewInfo.components.a     = VK_COMPONENT_SWIZZLE_IDENTITY;
     viewInfo.subresourceRange = {
-      initInfo.aspect, 0, 1, 0, initInfo.arrayLayers
+      (VkImageAspectFlags)initInfo.aspect, 0, 1, 0, initInfo.arrayLayers
     };
 
     return vkCreateImageView(renderer->mDevice, &viewInfo, VK_NULL_HANDLE, &mView);
@@ -1096,11 +1144,15 @@ namespace PurrfectEngine {
   }
 
   purrTexture::purrTexture() {
-    
+
   }
 
-  void purrTexture::bind(VkCommandBuffer cmdBuf, uint32_t set) {
+  void purrTexture::bind(VkCommandBuffer cmdBuf, VkPipelineLayout layout, uint32_t set) {
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, set, 1, &mSet, 0, NULL);
+  }
 
+  void purrTexture::bind(VkCommandBuffer cmdBuf, purrPipeline *pipeline, uint32_t set) {
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getLayout(), set, 1, &mSet, 0, NULL);
   }
 
   VkResult purrTexture::createTextureSet() {
@@ -1285,8 +1337,8 @@ namespace PurrfectEngine {
     purrRenderer *renderer = purrRenderer::getInstance();
 
     VkClearValue *clearValues = (VkClearValue*)malloc(sizeof(VkClearValue)*(mInitInfo.depth+1));
-    clearValues[0] = ((VkClearValue){{{0.0f,0.0f,0.0f,1.0}}});
-    if (mInitInfo.depth) clearValues[1] = ((VkClearValue){{0.0f,1.0f}});
+    clearValues[0] = (VkClearValue{{{0.0f,0.0f,0.0f,1.0}}});
+    if (mInitInfo.depth) clearValues[1] = (VkClearValue{{0.0f,1.0f}});
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1298,6 +1350,21 @@ namespace PurrfectEngine {
     renderPassInfo.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(cmdBuf, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    VkViewport viewport{};
+    viewport.x        = 0.0f;
+    viewport.y        = 0.0f;
+    viewport.width    = static_cast<float>(mInitInfo.extent.width);
+    viewport.height   = static_cast<float>(mInitInfo.extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmdBuf, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent.width  = mInitInfo.extent.width;
+    scissor.extent.height = mInitInfo.extent.height;
+    vkCmdSetScissor(cmdBuf, 0, 1, &scissor);
 
     free(clearValues);
   }

@@ -35,7 +35,12 @@ namespace PurrfectEngine {
     virtual bool preUpdate()  = 0;
     virtual bool update()     = 0;
     virtual void cleanup()    = 0;
-  private:
+
+    void beginFrame(VkCommandBuffer cmdBuf, uint32_t imageIndex) { mCmdBuf = cmdBuf; mImageIndex = imageIndex; }
+    void endFrame() { mCmdBuf = VK_NULL_HANDLE; mImageIndex = 0; }
+  protected:
+    VkCommandBuffer mCmdBuf = VK_NULL_HANDLE;
+    uint32_t mImageIndex = 0;
   };
 
   struct purrRendererSwapchainInfo {
@@ -61,6 +66,8 @@ namespace PurrfectEngine {
     friend class purrTexture;
     friend class purrRenderTarget;
     friend class purrPipeline;
+    // Extensions
+    friend class purrOffscreenRendererExt;
   public:
     purrRenderer(std::vector<purrRendererExt*> extensions);
     ~purrRenderer();
@@ -77,7 +84,7 @@ namespace PurrfectEngine {
   private:
     virtual bool initialize_() = 0;
     virtual bool resize_() = 0;
-    virtual bool render_() = 0;
+    virtual bool render_(VkCommandBuffer cmdBuf) = 0;
     virtual void cleanup_() = 0;
 
     virtual VkFormat getRenderTargetFormat() = 0;
@@ -138,6 +145,18 @@ namespace PurrfectEngine {
     inline static purrRenderer *sInstance = nullptr;
   };
 
+  class purrOffscreenRendererExt: public purrRendererExt {
+  public:
+    purrOffscreenRendererExt();
+    ~purrOffscreenRendererExt();
+
+    virtual bool initialize() override;
+    virtual bool preUpdate()  override;
+    virtual bool update()     override;
+    virtual void cleanup()    override;
+  private:
+  };
+
   class purrBuffer {
   public:
     purrBuffer();
@@ -147,6 +166,9 @@ namespace PurrfectEngine {
     void cleanup();
 
     void copy(void *data, VkDeviceSize size, VkDeviceSize offset);
+    VkResult copy(purrBuffer *src, VkDeviceSize size, VkDeviceSize offset);
+  public:
+    VkBuffer get() const { return mBuffer; }
   private:
     VkBuffer mBuffer = VK_NULL_HANDLE;
     VkDeviceMemory mMemory = VK_NULL_HANDLE;
@@ -221,6 +243,7 @@ namespace PurrfectEngine {
     VkFormat format;
   };
 
+  class purrPipeline;
   class purrTexture {
   public:
     purrTexture();
@@ -228,7 +251,8 @@ namespace PurrfectEngine {
   public:
     VkImageView getView() const { return mImage->getView(); }
   public:
-    void bind(VkCommandBuffer cmdBuf, uint32_t set);
+    void bind(VkCommandBuffer cmdBuf, VkPipelineLayout layout, uint32_t set);
+    void bind(VkCommandBuffer cmdBuf, purrPipeline *pipeline, uint32_t set);
   protected:
     VkResult createTextureSet();
     void writeImageToSet(VkSampler sampler);
@@ -274,6 +298,9 @@ namespace PurrfectEngine {
 
     void begin(VkCommandBuffer cmdBuf);
     void end(VkCommandBuffer cmdBuf);
+  public:
+    purrTexture *getColor() const { return mInitInfo.colorImage; }
+    purrTexture *getDepth() const { return mInitInfo.depthImage; }
   private:
     purrRenderTargetInitInfo mInitInfo;
   private:
@@ -300,6 +327,9 @@ namespace PurrfectEngine {
     void cleanup();
 
     void bind(VkCommandBuffer cmdBuf);
+  public:
+    VkPipelineLayout getLayout() const { return mLayout; }
+    VkPipeline get() const { return mPipeline; }
   private:
     purrPipelineInitInfo mInitInfo;
   private:

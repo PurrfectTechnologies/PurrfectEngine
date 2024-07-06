@@ -29,16 +29,20 @@ protected:
       mScene->addObject(object);
     }
 
+    purrObject *camObj = nullptr;
     { // Initialize camera
-      purrObject *object = new purrObject(new purrTransform(glm::vec3(0.0f, 0.0f, -5.0f)));
-      object->addComponent(new purrCameraComp(new purrCamera()));
-      mScene->addObject(object);
-      mScene->setCamera(object);
+      camObj = new purrObject(new purrTransform(glm::vec3(0.0f, 0.0f, -5.0f)));
+      camObj->addComponent(new purrCameraComp(new purrCamera()));
+      mScene->addObject(camObj);
+      mScene->setCamera(camObj);
     }
 
     SetScene(mScene);
 
-    return true;
+    purrRenderer3D *renderer = (purrRenderer3D*)purrRenderer::getInstance();
+    purrCameraComp *cameraComp = (purrCameraComp*)camObj->getComponent("cameraComponent");
+
+    return ((renderer->setObjectList({ purrObject3D{ glm::mat4(1.0f) } })) && (renderer->updateCamera(cameraComp->getCamera())));
   }
 
   virtual bool update(float dt) override {
@@ -57,6 +61,7 @@ protected:
     delete mScene;
   }
 private:
+  purrAppRendererExt *mRendererExt = nullptr;
   purrScene *mScene = nullptr;
 };
 
