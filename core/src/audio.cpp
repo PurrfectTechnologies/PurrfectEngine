@@ -7,6 +7,14 @@
 
 namespace PurrfectEngine {
 
+  LPALGENAUXILIARYEFFECTSLOTS alGenAuxiliaryEffectSlots = nullptr;
+  LPALDELETEAUXILIARYEFFECTSLOTS alDeleteAuxiliaryEffectSlots = nullptr;
+  LPALAUXILIARYEFFECTSLOTI alAuxiliaryEffectSloti = nullptr;
+  LPALGENEFFECTS alGenEffects = nullptr;
+  LPALDELETEEFFECTS alDeleteEffects = nullptr;
+  LPALEFFECTI alEffecti = nullptr;
+  LPALEFFECTF alEffectf = nullptr;
+
   purrAudioEngine::purrAudioEngine():
     mDevice(nullptr), mContext(nullptr), mReverbEffect(0), mEffectSlot(0)
   {}
@@ -17,7 +25,7 @@ namespace PurrfectEngine {
 
   
 
-  bool loadEFXExtensionFunctions() {
+  bool purrAudioEngine::loadEFXExtensionFunctions() {
     alGenAuxiliaryEffectSlots = (LPALGENAUXILIARYEFFECTSLOTS)alGetProcAddress("alGenAuxiliaryEffectSlots");
     alDeleteAuxiliaryEffectSlots = (LPALDELETEAUXILIARYEFFECTSLOTS)alGetProcAddress("alDeleteAuxiliaryEffectSlots");
     alAuxiliaryEffectSloti = (LPALAUXILIARYEFFECTSLOTI)alGetProcAddress("alAuxiliaryEffectSloti");
@@ -159,35 +167,160 @@ namespace PurrfectEngine {
     alSourcePlay(source);
   }
 
-  void purrAudioEngine::playSoundFromTime(ALuint source, float seconds) {
+  void purrAudioEngine::addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter) {
+    mFilters[name] = filter;
+  }
+
+  void purrAudioEngine::applyFilter(const std::string& name, ALuint source) {
+    if (mFilters.find(name) != mFilters.end()) {
+      mFilters[name]->apply(source);
+    }
+  }
+
+  std::shared_ptr<purrAudioFilter> purrAudioEngine::getFilter(const std::string& name) {
+    if (mFilters.find(name) != mFilters.end()) {
+      return mFilters[name];
+    }
+    return nullptr;
+  }
+
+// Start Audio Control
+  void purrAudioControl::addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter) {
+    purrAudioEngine::instance().addFilter(name, filter);
+  }
+
+  void purrAudioControl::applyFilter(const std::string& name, ALuint source) {
+    purrAudioEngine::instance().applyFilter(name, source);
+  }
+
+  void purrAudioControl::playSoundFromTime(ALuint source, float seconds) {
     alSourcef(source, AL_SEC_OFFSET, seconds);
     alSourcePlay(source);
   }
 
-  void purrAudioEngine::setListenerPosition(float x, float y, float z) {
+  void purrAudioControl::setListenerPosition(float x, float y, float z) {
     alListener3f(AL_POSITION, x, y, z);
   }
 
-  void purrAudioEngine::setListenerOrientation(float atX, float atY, float atZ, float upX, float upY, float upZ) {
+  void purrAudioControl::setListenerOrientation(float atX, float atY, float atZ, float upX, float upY, float upZ) {
     ALfloat listenerOri[] = {atX, atY, atZ, upX, upY, upZ};
     alListenerfv(AL_ORIENTATION, listenerOri);
   }
 
-  void purrAudioEngine::setSoundPosition(ALuint source, float x, float y, float z) {
+  void purrAudioControl::setSoundPosition(ALuint source, float x, float y, float z) {
     alSource3f(source, AL_POSITION, x, y, z);
   }
 
-  void purrAudioEngine::setReverb(ALuint source, float gain) {
+  void purrAudioControl::setVelocity(ALuint source, float x, float y, float z) {
+    ALfloat velocity[] = {x, y, z};
+    alSourcefv(source, AL_VELOCITY, velocity);
+  }
+
+  void purrAudioControl::setDirection(ALuint source, float x, float y, float z) {
+    ALfloat direction[] = {x, y, z};
+    alSourcefv(source, AL_DIRECTION, direction);
+  }
+
+  void purrAudioControl::setReverb(ALuint source, float gain) {
     alEffecti(mReverbEffect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
     alEffectf(mReverbEffect, AL_REVERB_GAIN, gain);
     alAuxiliaryEffectSloti(mEffectSlot, AL_EFFECTSLOT_EFFECT, mReverbEffect);
   }
 
-  void purrAudioEngine::setPitch(ALuint source, float pitch) {
+  void purrAudioControl::setPitch(ALuint source, float pitch) {
     alSourcef(source, AL_PITCH, pitch);
   }
 
-  void purrAudioEngine::setGain(ALuint source, float gain) {
+  void purrAudioControl::setGain(ALuint source, float gain) {
     alSourcef(source, AL_GAIN, gain);
+  }
+
+  void purrAudioControl::fadeIn(ALuint source, float duration) {
+    alSourcef(source, AL_GAIN, 0.0f);
+    alSourcePlay(source);
+    float gain = 0.0f;
+    float increment - 1.0f / (duration * 10);
+    for (int i = 0; i < duration * 10; ++i) {
+      gain += increment;
+      if (gain > 1.0f) gain = 1.0f;
+      alSourcef(source, AL_GAIN, gain);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  }
+
+  void purrAudioControl::fadeOut(ALuint source, float duration) {
+    float gain;
+    alGetSourcef(source, AL_GAIN, &gain);
+    float decrement = gain / (duration * 10);
+    for (int i = 0; i < duration * 10; ++i) {
+      gain -= decrement;
+      if (gain < 0.0f) gain = 0.0f;
+      alSourcef(source, AL_GAIN, gain);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    alSourceStop(source);
+  }
+
+  void purrAudioControl::setLooping(ALuint source, bool loop) {
+    alSourcei(source, AL_LOOPING, loop ? AL_TRUE : AL_FALSE);
+  }
+
+  void purrAudioControl::getSourceState(ALuint source) {
+    ALint source;
+    alGetSourcei(source, AL_SOURCE_STATE, &state);
+    return state;
+  }
+
+  void purrAudioControl::setDopplerFactor(float factor) {
+    alDopplerFactor(factor);
+  }
+
+  void purrAudioControl::setSpeedOfSound(float speed) {
+    alSpeedOfSound(speed);
+  }
+
+  void purrAudioControl::setStereoPan(ALuint source, float pan) {
+    ALfloat sourcePos[] = {pan, 0.0f, 0.0f};
+    alSourcefv(source, AL_POSITION, sourcePos);
+  }
+
+  void purrAudioControl::setBassLevel(ALuint source, float level) {
+    alSourcef(source, AL_BASS_GAIN, level);
+  }
+
+  void purrAudioControl::setMidLevel(ALuint source, float level) {
+    alSourcef(source, AL_MID_GAIN, level);
+  }
+
+  //void purrAudioControl::setTrebleLevel(ALuint source, float level) {
+  //  alSourcef(source, AL_TREB)
+  //}
+
+  void purrAudioControl::applyEchoEffect(ALuint source, float delay, float feedback) {
+    ALuint effect;
+    alGenEffects(1, &effect);
+    alEffecti(effect, AL_EFFECT_TYPE, AL_EFFECT_ECHO);
+    alEffectf(effect, AL_ECHO_DELAY, delay);
+    alEffectf(effect, AL_ECHO_FEEDBACK, feedback);
+
+    ALuint auxEffectSlot;
+    alGenAuxiliaryEffectSlots(1, &auxEffectSlot);
+    alAuxiliaryEffectSloti(auxEffectSlot, AL_EFFECTSLOT_EFFECT, effect);
+
+    alSource3i(source, AL_AUXILIARY_SEND_FILTER, auxEffectSlot, 0, AL_FILTER_NULL);
+  }
+
+  void purrAudioControl::applyFlangEffect(ALuint source, float rate, float depth) {
+    ALuint effect;
+    alGenEffects(1, &effect);
+    alEffecti(effect, AL_EFFECT_TYPE, AL_EFFECT_FLANGER);
+    alEffectf(effect, AL_FLANGER_RATE, rate);
+    alEffectf(effect, AL_FLAnger_DEPTH, depth);
+
+    ALuint auxEffectSlot;
+    alGenAuxiliaryEffectSlots(1, &auxEffectSlot);
+    alAuxiliaryEffectSloti(auxEffectSlot, AL_EFFECTSLOT_EFFECT, effect);
+
+    alSource3i(source, AL_AUXILIARY_SEND_FILTER, auxEffectSlot, 0, AL_FILTER_NULL);f
   }
 }
