@@ -1,9 +1,13 @@
+#define MINIMP3_IMPLEMENTATION
+
 #include "PurrfectEngine/PurrfectEngine.hpp"
 
 #include <iostream>
 #include <vector>
 #include "minimp3_ex.h"
 #include <sndfile.h>
+#include <thread>
+#include <chrono>
 
 namespace PurrfectEngine {
 
@@ -15,15 +19,13 @@ namespace PurrfectEngine {
   LPALEFFECTI alEffecti = nullptr;
   LPALEFFECTF alEffectf = nullptr;
 
-  purrAudioEngine::purrAudioEngine():
-    mDevice(nullptr), mContext(nullptr), mReverbEffect(0), mEffectSlot(0)
+  purrAudioEngine::purrAudioEngine(std::vector<purrAudioExt*> extensions):
+    purrExtendable<purrAudioExt>(extensions), mDevice(nullptr), mContext(nullptr), mReverbEffect(0), mAuxEffectSlot(0)
   {}
 
   purrAudioEngine::~purrAudioEngine() {
     cleanup();
   }
-
-  
 
   bool purrAudioEngine::loadEFXExtensionFunctions() {
     alGenAuxiliaryEffectSlots = (LPALGENAUXILIARYEFFECTSLOTS)alGetProcAddress("alGenAuxiliaryEffectSlots");
@@ -57,7 +59,7 @@ namespace PurrfectEngine {
 
     if (alcIsExtensionPresent(mDevice, "ALC_EXT_EFX")) {
       mEFXSupported = true;
-      alGenAuxiliaryEffectSlots(1, &mEffectSlot);
+      alGenAuxiliaryEffectSlots(1, &mAuxEffectSlot);
       alGenEffects(1, &mReverbEffect);
     } else {
       mEFXSupported = false;
@@ -70,8 +72,8 @@ namespace PurrfectEngine {
   }
 
   void purrAudioEngine::cleanup() {
-    if (mEffectSlot != 0) {
-      alDeleteAuxiliaryEffectSlots(1, &mEffectSlot);
+    if (mAuxEffectSlot != 0) {
+      alDeleteAuxiliaryEffectSlots(1, &mAuxEffectSlot);
     }
     if (mReverbEffect != 0) {
       alDeleteEffects(1, &mReverbEffect);
@@ -153,8 +155,8 @@ namespace PurrfectEngine {
     ALint state;
     alGetSourcei(source, AL_SOURCE_STATE, &state);
     if (state = AL_PAUSED) {
-      alSourcePlay(source)''
-    }
+      alSourcePlay(source);
+    };
   }
 
   void purrAudioEngine::stop(ALuint source) {
@@ -186,11 +188,11 @@ namespace PurrfectEngine {
 
 // Start Audio Control
   void purrAudioControl::addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter) {
-    purrAudioEngine::instance().addFilter(name, filter);
+    purrAudioEngine::getInstance()->addFilter(name, filter);
   }
 
   void purrAudioControl::applyFilter(const std::string& name, ALuint source) {
-    purrAudioEngine::instance().applyFilter(name, source);
+    purrAudioEngine::getInstance()->applyFilter(name, source);
   }
 
   void purrAudioControl::playSoundFromTime(ALuint source, float seconds) {
@@ -224,7 +226,7 @@ namespace PurrfectEngine {
   void purrAudioControl::setReverb(ALuint source, float gain) {
     alEffecti(mReverbEffect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
     alEffectf(mReverbEffect, AL_REVERB_GAIN, gain);
-    alAuxiliaryEffectSloti(mEffectSlot, AL_EFFECTSLOT_EFFECT, mReverbEffect);
+    alAuxiliaryEffectSloti(mAuxEffectSlot, AL_EFFECTSLOT_EFFECT, mReverbEffect);
   }
 
   void purrAudioControl::setPitch(ALuint source, float pitch) {
@@ -239,13 +241,13 @@ namespace PurrfectEngine {
     alSourcef(source, AL_GAIN, 0.0f);
     alSourcePlay(source);
     float gain = 0.0f;
-    float increment - 1.0f / (duration * 10);
+    float increment = 1.0f / (duration * 10);
     for (int i = 0; i < duration * 10; ++i) {
       gain += increment;
       if (gain > 1.0f) gain = 1.0f;
       alSourcef(source, AL_GAIN, gain);
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    };
   }
 
   void purrAudioControl::fadeOut(ALuint source, float duration) {
@@ -265,8 +267,8 @@ namespace PurrfectEngine {
     alSourcei(source, AL_LOOPING, loop ? AL_TRUE : AL_FALSE);
   }
 
-  void purrAudioControl::getSourceState(ALuint source) {
-    ALint source;
+  ALint purrAudioControl::getSourceState(ALuint source) {
+    ALint state;
     alGetSourcei(source, AL_SOURCE_STATE, &state);
     return state;
   }
@@ -283,18 +285,6 @@ namespace PurrfectEngine {
     ALfloat sourcePos[] = {pan, 0.0f, 0.0f};
     alSourcefv(source, AL_POSITION, sourcePos);
   }
-
-  void purrAudioControl::setBassLevel(ALuint source, float level) {
-    alSourcef(source, AL_BASS_GAIN, level);
-  }
-
-  void purrAudioControl::setMidLevel(ALuint source, float level) {
-    alSourcef(source, AL_MID_GAIN, level);
-  }
-
-  //void purrAudioControl::setTrebleLevel(ALuint source, float level) {
-  //  alSourcef(source, AL_TREB)
-  //}
 
   void purrAudioControl::applyEchoEffect(ALuint source, float delay, float feedback) {
     ALuint effect;
@@ -315,12 +305,12 @@ namespace PurrfectEngine {
     alGenEffects(1, &effect);
     alEffecti(effect, AL_EFFECT_TYPE, AL_EFFECT_FLANGER);
     alEffectf(effect, AL_FLANGER_RATE, rate);
-    alEffectf(effect, AL_FLAnger_DEPTH, depth);
+    alEffectf(effect, AL_FLANGER_DEPTH, depth);
 
     ALuint auxEffectSlot;
     alGenAuxiliaryEffectSlots(1, &auxEffectSlot);
     alAuxiliaryEffectSloti(auxEffectSlot, AL_EFFECTSLOT_EFFECT, effect);
 
-    alSource3i(source, AL_AUXILIARY_SEND_FILTER, auxEffectSlot, 0, AL_FILTER_NULL);f
+    alSource3i(source, AL_AUXILIARY_SEND_FILTER, auxEffectSlot, 0, AL_FILTER_NULL);
   }
 }

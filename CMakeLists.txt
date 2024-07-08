@@ -19,6 +19,7 @@ set(KTX_FEATURE_TESTS OFF)
 add_subdirectory(dependencies/KTX-Software)
 
 set(ALSOFT_TESTS OFF)
+set(-DLIBTYPE=STATIC)
 add_subdirectory(dependencies/openal-soft)
 
 add_subdirectory(dependencies/libsndfile)

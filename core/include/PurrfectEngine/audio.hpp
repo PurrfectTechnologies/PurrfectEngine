@@ -1,5 +1,7 @@
-#ifndef PURRFECTENGINE_AUDIO_HPP_
-#define PURRFECTENGINE_AUDIO_HPP_
+#ifndef PURRENGINE_AUDIO_HPP_
+#define PURRENGINE_AUDIO_HPP_
+
+#define AL_LIBTYPE_STATIC
 
 #include <AL/al.h>
 #include <AL/alc.h>
@@ -31,16 +33,39 @@ namespace PurrfectEngine {
   extern LPALDELETEEFFECTS alDeleteEffects;
   extern LPALEFFECTI alEffecti;
   extern LPALEFFECTF alEffectf;
+  
+  class purrAudioExt {
+  public:
+    virtual bool initialize() = 0;
+    virtual bool preUpdate()  = 0;
+    virtual bool update()     = 0;
+    virtual void cleanup()    = 0;
+  };
+
+  class purrAudioFilter : public purrAudioExt {
+  public:
+    virtual ~purrAudioFilter() = default;
+
+    virtual bool initialize() override = 0;
+    virtual bool preUpdate() override { return true; }
+    virtual bool update() override { return true; }
+    virtual void cleanup() override = 0;
+    virtual void apply(ALuint source) = 0;
+    virtual void setParameter(const std::string& param, float value) = 0;
+
+  protected:
+    ALuint mFilter;
+  };
 
   class purrAudioEngine: purrExtendable<purrAudioExt> {
   public:
-    static purrAudioEngine& instance() {
-      static purrAudioEngine instance;
-      return instance;
-    }
+    static purrAudioEngine& instance();
 
-    purrAudioEngine(const purrAudioEngine&) = delete;
-    purrAudioEngine& operator=(const purrAudioEngine&) = delete;
+    
+    purrAudioEngine(std::vector<purrAudioExt*> extensions);
+    
+    purrAudioEngine();
+    ~purrAudioEngine();
 
     bool initialize();
     void cleanup();
@@ -57,64 +82,61 @@ namespace PurrfectEngine {
     std::shared_ptr<purrAudioFilter> getFilter(const std::string& name);
 
     friend class purrAudioControl;
+  public:
+  static purrAudioEngine *getInstance() { return sInstance; }
+  
   private:
-    purrAudioEngine();
-    ~purrAudioEngine();
+    purrAudioEngine(const purrAudioEngine&) = delete;
+    purrAudioEngine& operator=(const purrAudioEngine&) = delete;
+
+    inline static purrAudioEngine *sInstance = nullptr;
 
     ALCdevice  *mDevice = nullptr;
     ALCcontext *mContext = nullptr;
 
     bool mEFXSupported = false;
     ALuint mReverbEffect = 0;
-    ALuint mEffectSlot = 0;
+    ALuint mAuxEffectSlot = 0;
 
     std::map<std::string, std::shared_ptr<purrAudioFilter>> mFilters;
 
     bool loadEFXExtensionFunctions();
   };
 
-  class purrAudioFilter {
-  public:
-    virtual ~purrAudioFilter() = default;
-
-    virtual bool initialize() = 0;
-    virtual void apply(ALuint source) = 0;
-    virtual void setParameter(const std::string& param, float value) = 0;
-
-  protected:
-    ALuint mFilter;
-  };
-
   class purrAudioControl {
   public: 
-    static void setListenerPosition(float x, float y, float z);
-    static void setListenerOrientation(float atX, float atY, float atZ, float upX, float upY, float upZ);
-    static void setSoundPosition(ALuint source, float x, float y, float z);
-    static void setDirection(ALuint source, float x, float y, float z);
-    static void setVelocity(ALuint source, float x, float y, float z);
-    static void setReverb(ALuint source, float density, float diffusion, float gain, float gainHF, float decayTime);
-    static void setPitch(ALuint source, float pitch);
-    static void setGain(ALuint source, float gain);
-    static void playSoundFromTime(ALuint source, float seconds);
-    static void fadeIn(ALuint source, float duration);
-    static void fadeOut(ALuint source, float duration);
-    static void setLooping(ALuint source, bool loop);
-    static ALint getSourceState(ALuint source);
-    static void setDopplerFactor(float factor);
-    static void setSpeedOfSound(float speed);
-    static void setStereoPan(ALuint source, float pan);
+    void setListenerPosition(float x, float y, float z);
+    void setListenerOrientation(float atX, float atY, float atZ, float upX, float upY, float upZ);
+    void setSoundPosition(ALuint source, float x, float y, float z);
+    void setDirection(ALuint source, float x, float y, float z);
+    void setVelocity(ALuint source, float x, float y, float z);
+    void setReverb(ALuint source, float gain);
+    void setPitch(ALuint source, float pitch);
+    void setGain(ALuint source, float gain);
+    void playSoundFromTime(ALuint source, float seconds);
+    void fadeIn(ALuint source, float duration);
+    void fadeOut(ALuint source, float duration);
+    void setLooping(ALuint source, bool loop);
+    ALint getSourceState(ALuint source);
+    void setDopplerFactor(float factor);
+    void setSpeedOfSound(float speed);
+    void setStereoPan(ALuint source, float pan);
 
-    static void addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter);
-    static void applyFilter(const std::string& name, ALuint source);
+    void addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter);
+    void applyFilter(const std::string& name, ALuint source);
 
 
     // set for equalizer (no no touchy)
-    static void setBassLevel(ALuint source, float level);
-    static void setMidLevel(ALuint source, float level);
-    static void setTrebleLevel(ALuint source, float level);
-    static void applyEchoEffect(ALuint source, float delay, float feedback);
-    static void applyFlangEffect(ALuint source, float rate, float depth);
+    // void setBassLevel(ALuint source, float level);
+    // void setMidLevel(ALuint source, float level);
+    // void setTrebleLevel(ALuint source, float level);
+    void applyEchoEffect(ALuint source, float delay, float feedback);
+    void applyFlangEffect(ALuint source, float rate, float depth);
+
+  private:
+    ALuint mReverbEffect = 0;
+    ALuint mAuxEffectSlot = 0;
   };
 }
 
-#endif // PURRFECTENGINE_AUDIO_HPP_
+#endif // PURRENGINE_AUDIO_HPP_

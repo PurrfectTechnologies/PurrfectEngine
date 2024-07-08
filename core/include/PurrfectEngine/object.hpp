@@ -10,11 +10,10 @@
 namespace PurrfectEngine {
 
   struct PUID {
-    PUID();
+  public:
+    constexpr PUID() = default;
 
-    PUID(uint32_t id):
-      mId(id)
-    {}
+    constexpr PUID(uint32_t id) : mId(id) {}
 
     friend bool operator==(PUID dis, PUID other) {
       return dis.mId == other.mId;
@@ -23,6 +22,7 @@ namespace PurrfectEngine {
     uint32_t operator()() {
       return mId;
     }
+  
   private:
     uint32_t mId = 0;
   };
@@ -35,6 +35,10 @@ namespace PurrfectEngine {
     virtual const char *getName() = 0;
   private:
   };
+
+  class purrCamera;
+  class purrTransform;
+  class purrAudioEngine;
 
   // class purrMesh;
   // class purrMeshComp : public purrComponent {
@@ -81,14 +85,14 @@ namespace PurrfectEngine {
   class purrAudioComp : public purrComponent {
   public:
     purrAudioComp(purrAudioEngine *audioSource);
-    virtual ~purrAudioEngine() override;
+    virtual ~purrAudioComp() override;
 
     virtual const char *getName() override { return "audioComponent"; }
 
-    purrAudioEngine *getAudio() const { return mAudio };
+    purrAudioEngine *getAudio() const { return mAudio; };
   private:
     purrAudioEngine *mAudio = nullptr;
-  }
+  };
 
   class purrObject {
   public:
@@ -97,7 +101,6 @@ namespace PurrfectEngine {
 
     bool addComponent(purrComponent* component);
     bool addComponent(purrCameraComp* component);
-    bool addComponent(purrAudioComp* component);
     purrComponent *getComponent(const char *name);
     bool removeComponent(const char *name);
 

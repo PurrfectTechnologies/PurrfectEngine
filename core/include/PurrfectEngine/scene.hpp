@@ -2,11 +2,9 @@
 #define   PURRENGINE_SCENE_HPP_
 
 #include <vector>
-
 #include "PurrfectEngine/object.hpp"
 
 namespace PurrfectEngine {
-
   class purrScene {
   public:
     purrScene();
