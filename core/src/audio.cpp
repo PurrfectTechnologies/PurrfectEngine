@@ -27,19 +27,6 @@ namespace PurrfectEngine {
     cleanup();
   }
 
-  bool purrAudioEngine::loadEFXExtensionFunctions() {
-    alGenAuxiliaryEffectSlots = (LPALGENAUXILIARYEFFECTSLOTS)alGetProcAddress("alGenAuxiliaryEffectSlots");
-    alDeleteAuxiliaryEffectSlots = (LPALDELETEAUXILIARYEFFECTSLOTS)alGetProcAddress("alDeleteAuxiliaryEffectSlots");
-    alAuxiliaryEffectSloti = (LPALAUXILIARYEFFECTSLOTI)alGetProcAddress("alAuxiliaryEffectSloti");
-    alGenEffects = (LPALGENEFFECTS)alGetProcAddress("alGenEffects");
-    alDeleteEffects = (LPALDELETEEFFECTS)alGetProcAddress("alDeleteEffects");
-    alEffecti = (LPALEFFECTI)alGetProcAddress("alEffecti");
-    alEffectf = (LPALEFFECTF)alGetProcAddress("alEffectf");
-
-    return alGenAuxiliaryEffectSlots && alDeleteAuxiliaryEffectSlots && alAuxiliaryEffectSloti &&
-          alGenEffects && alDeleteEffects && alEffecti && alEffectf;
-  }
-
   bool purrAudioEngine::initialize() {
     mDevice = alcOpenDevice(nullptr);
     if (!mDevice) return false;
@@ -87,41 +74,49 @@ namespace PurrfectEngine {
     }
   }
 
-  bool purrAudioEngine::load(const std::string &filename, ALuint &buffer) {
-    std::string extension = filename.substr(filename.find_last_of(".") + 1);
+  bool purrAudioEngine::load(const char *filename, ALuint buffer) {
+    char *ext = NULL;
+    { // Find extension of filename
+      char *ptr = strrchr(filename, '.');
+      if (!ptr) return false;
+      ext = ptr+1;
+    }
 
-    if (extension == "mp3") {
+    int    sampleRate  = 0;
+    short *samples     = NULL;
+    size_t sampleCount = 0;
+    ALenum format = 0;
+    if (strcmp(ext, "mp3") == 0) {
       mp3dec_t mp3d;
       mp3dec_file_info_t info;
-      if (mp3dec_load(&mp3d, filename.c_str(), &info, nullptr, nullptr)) return false;
-      ALenum format = info.channels == 1 ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16;
-      alGenBuffers(1, &buffer);
-      alBufferData(buffer, format, info.buffer, info.samples * sizeof(mp3d_sample_t), info.hz);
-
-      free(info.buffer);
+      if (mp3dec_load(&mp3d, filename, &info, nullptr, nullptr)) return false;
+      if (info.channels < 1 || info.channels > 2) return false;
+      format = (info.channels == 1)?AL_FORMAT_MONO16:AL_FORMAT_STEREO16;
+      sampleRate = info.hz;
     } else {
       SF_INFO sfInfo;
-      SNDFILE *sndFile = sf_open(filename.c_str(), SFM_READ, &sfInfo);
+      SNDFILE *sndFile = sf_open(filename, SFM_READ, &sfInfo);
       if (!sndFile) return false;
 
-      std::vector<short> samples(sfInfo.frames * sfInfo.channels);
-      sf_read_short(sndFile, samples.data(), sfInfo.frames * sfInfo.channels);
+      std::vector<short> samplesV(sfInfo.frames * sfInfo.channels);
+      sf_read_short(sndFile, samplesV.data(), sfInfo.frames * sfInfo.channels);
       sf_close(sndFile);
 
-      ALenum format;
-      if (sfInfo.channels == 1) {
-        format = AL_FORMAT_MONO16;
-      } else if (sfInfo.channels == 2) {
-        format = AL_FORMAT_STEREO16;
-      } else return false;
-
-      alGenBuffers(1, &buffer);
-      alBufferData(buffer, format, samples.data(), samples.size() * sizeof(short), sfInfo.samplerate);
+      if (sfInfo.channels < 1 || sfInfo.channels > 2) return false;
+      format = (sfInfo.channels == 1)?AL_FORMAT_MONO16:AL_FORMAT_STEREO16;
+      sampleRate = sfInfo.samplerate;
+      sampleCount = samplesV.size();
+      memcpy(samples, samplesV.data(), sampleCount*sizeof(short));
     }
+
+    alGenBuffers(1, &buffer);
+    alBufferData(buffer, format, samples, sampleCount * sizeof(*samples), sampleRate);
+    free(samples);
+
     return true;
   }
 
-  bool purrAudioEngine::play(ALuint buffer) {
+  void purrAudioEngine::play(ALuint buffer) {
     ALuint source;
     alGenSources(1, &source);
 
@@ -132,9 +127,7 @@ namespace PurrfectEngine {
     alSource3f(source, AL_VELOCITY, 0, 0, 0);
     alSourcei(source, AL_LOOPING, AL_FALSE);
 
-    if (mEFXSupported) {
-      alSource3i(source, AL_AUXILIARY_SEND_FILTER, mAuxEffectSlot, 0, AL_FILTER_NULL);
-    }
+    if (mEFXSupported) alSource3i(source, AL_AUXILIARY_SEND_FILTER, mAuxEffectSlot, 0, AL_FILTER_NULL);
 
     alSourcePlay(source);
 
@@ -144,7 +137,6 @@ namespace PurrfectEngine {
     } while (state == AL_PLAYING);
 
     alDeleteSources(1, &source);
-    return true;
   }
 
   void purrAudioEngine::pause(ALuint source) {
@@ -152,11 +144,9 @@ namespace PurrfectEngine {
   }
 
   void purrAudioEngine::resume(ALuint source) {
-    ALint state;
+    ALint state = 0;
     alGetSourcei(source, AL_SOURCE_STATE, &state);
-    if (state = AL_PAUSED) {
-      alSourcePlay(source);
-    };
+    if (state == AL_PAUSED) alSourcePlay(source);
   }
 
   void purrAudioEngine::stop(ALuint source) {
@@ -169,32 +159,32 @@ namespace PurrfectEngine {
     alSourcePlay(source);
   }
 
-  void purrAudioEngine::addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter) {
+  void purrAudioEngine::addFilter(const char *name, std::shared_ptr<purrAudioFilter> filter) {
     mFilters[name] = filter;
   }
 
-  void purrAudioEngine::applyFilter(const std::string& name, ALuint source) {
-    if (mFilters.find(name) != mFilters.end()) {
-      mFilters[name]->apply(source);
-    }
+  bool purrAudioEngine::applyFilter(const char *name, ALuint source) {
+    return ((mFilters.find(name) == mFilters.end())?false:(mFilters[name]->apply(source), true));
   }
 
-  std::shared_ptr<purrAudioFilter> purrAudioEngine::getFilter(const std::string& name) {
-    if (mFilters.find(name) != mFilters.end()) {
-      return mFilters[name];
-    }
-    return nullptr;
+  std::shared_ptr<purrAudioFilter> purrAudioEngine::getFilter(const char *name) {
+    return ((mFilters.find(name) != mFilters.end())?mFilters[name]:nullptr);
   }
 
-// Start Audio Control
-  void purrAudioControl::addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter) {
-    purrAudioEngine::getInstance()->addFilter(name, filter);
+  bool purrAudioEngine::loadEFXExtensionFunctions() {
+    alGenAuxiliaryEffectSlots = (LPALGENAUXILIARYEFFECTSLOTS)alGetProcAddress("alGenAuxiliaryEffectSlots");
+    alDeleteAuxiliaryEffectSlots = (LPALDELETEAUXILIARYEFFECTSLOTS)alGetProcAddress("alDeleteAuxiliaryEffectSlots");
+    alAuxiliaryEffectSloti = (LPALAUXILIARYEFFECTSLOTI)alGetProcAddress("alAuxiliaryEffectSloti");
+    alGenEffects = (LPALGENEFFECTS)alGetProcAddress("alGenEffects");
+    alDeleteEffects = (LPALDELETEEFFECTS)alGetProcAddress("alDeleteEffects");
+    alEffecti = (LPALEFFECTI)alGetProcAddress("alEffecti");
+    alEffectf = (LPALEFFECTF)alGetProcAddress("alEffectf");
+
+    return alGenAuxiliaryEffectSlots && alDeleteAuxiliaryEffectSlots && alAuxiliaryEffectSloti
+        && alGenEffects && alDeleteEffects && alEffecti && alEffectf;
   }
 
-  void purrAudioControl::applyFilter(const std::string& name, ALuint source) {
-    purrAudioEngine::getInstance()->applyFilter(name, source);
-  }
-
+  // purrAudioControl:
   void purrAudioControl::playSoundFromTime(ALuint source, float seconds) {
     alSourcef(source, AL_SEC_OFFSET, seconds);
     alSourcePlay(source);

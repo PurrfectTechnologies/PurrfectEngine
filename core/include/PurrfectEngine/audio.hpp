@@ -58,49 +58,41 @@ namespace PurrfectEngine {
   };
 
   class purrAudioEngine: purrExtendable<purrAudioExt> {
+    friend class purrAudioControl;
   public:
-    static purrAudioEngine& instance();
+    purrAudioEngine(std::vector<purrAudioExt*> extensions);    
 
-    
-    purrAudioEngine(std::vector<purrAudioExt*> extensions);
-    
     purrAudioEngine();
     ~purrAudioEngine();
 
     bool initialize();
     void cleanup();
 
-    bool load(const std::string& filename, ALuint& buffer);
-    bool play(ALuint buffer);
+    bool load(const char *filename, ALuint buffer);
+    void play(ALuint buffer);
     void pause(ALuint source);
     void resume(ALuint source);
     void stop(ALuint source);
     void replay(ALuint source);
 
-    void addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter);
-    void applyFilter(const std::string& name, ALuint source);
-    std::shared_ptr<purrAudioFilter> getFilter(const std::string& name);
-
-    friend class purrAudioControl;
+    void addFilter(const char *name, std::shared_ptr<purrAudioFilter> filter);
+    bool applyFilter(const char *name, ALuint source);
+    std::shared_ptr<purrAudioFilter> getFilter(const char *name);
   public:
-  static purrAudioEngine *getInstance() { return sInstance; }
-  
+    static purrAudioEngine* getInstance();
   private:
-    purrAudioEngine(const purrAudioEngine&) = delete;
-    purrAudioEngine& operator=(const purrAudioEngine&) = delete;
-
-    inline static purrAudioEngine *sInstance = nullptr;
-
-    ALCdevice  *mDevice = nullptr;
+    ALCdevice  *mDevice  = nullptr;
     ALCcontext *mContext = nullptr;
 
-    bool mEFXSupported = false;
-    ALuint mReverbEffect = 0;
+    bool   mEFXSupported  = false;
+    ALuint mReverbEffect  = 0;
     ALuint mAuxEffectSlot = 0;
 
-    std::map<std::string, std::shared_ptr<purrAudioFilter>> mFilters;
-
+    std::map<const char *, std::shared_ptr<purrAudioFilter>> mFilters{};
+  private:
     bool loadEFXExtensionFunctions();
+  private:
+    inline static purrAudioEngine *sInstance = nullptr;
   };
 
   class purrAudioControl {
@@ -122,19 +114,14 @@ namespace PurrfectEngine {
     void setSpeedOfSound(float speed);
     void setStereoPan(ALuint source, float pan);
 
-    void addFilter(const std::string& name, std::shared_ptr<purrAudioFilter> filter);
-    void applyFilter(const std::string& name, ALuint source);
-
-
     // set for equalizer (no no touchy)
     // void setBassLevel(ALuint source, float level);
     // void setMidLevel(ALuint source, float level);
     // void setTrebleLevel(ALuint source, float level);
     void applyEchoEffect(ALuint source, float delay, float feedback);
     void applyFlangEffect(ALuint source, float rate, float depth);
-
   private:
-    ALuint mReverbEffect = 0;
+    ALuint mReverbEffect  = 0;
     ALuint mAuxEffectSlot = 0;
   };
 }
