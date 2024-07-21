@@ -33,6 +33,8 @@ namespace PurrfectEngine {
     void extsCleanup() {
       for (extType *ext: mExtensions) ext->cleanup();
     }
+
+    std::vector<extType*> &getExtensions() { return mExtensions; }
   private:
     std::vector<extType*> mExtensions{};
   };
