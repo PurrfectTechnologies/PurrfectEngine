@@ -39,7 +39,8 @@ namespace PurrfectEngine {
 
   }
 
-  bool purrRenderer::initialize(purrWindow *window, purrRendererInitInfo initInfo) {
+  bool purrRenderer::initialize(purrWindow *window) {
+    purrRendererInitInfo initInfo = getInitInfo();
     mWindow = window;
 
     { // Instance

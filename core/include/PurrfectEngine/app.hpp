@@ -47,13 +47,9 @@ namespace PurrfectEngine {
   public:
     const char *getAppName() const { return mCreateInfo.applicationName; }
   protected:
-    void SetScene(purrScene *scene);
-  protected:
     bool mRunning = true;
   public:
     static purrApp *get() { return sInstance; }
-  private:
-    purrScene *mScene = nullptr;
   private:
     purrAppCreateInfo mCreateInfo;
     inline static purrApp *sInstance = nullptr;
