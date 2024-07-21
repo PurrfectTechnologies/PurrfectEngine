@@ -63,9 +63,9 @@ bool shader_build(const char *const input_file_path, const char *const output_fi
 
 const char *const shaders[] = {
   "./assets/shaders/shader.vert", "./assets/shaders/shader_v.spv",
-  "./assets/shaders/shader.frag", "./assets/shaders/shader_f.spv",
+  "./assets/shaders/shader.frag",  "./assets/shaders/shader_f.spv",
   "./assets/shaders/scene.vert",  "./assets/shaders/scene_v.spv",
-  "./assets/shaders/scene.frag",  "./assets/shaders/scene_f.spv",
+  "./assets/shaders/scene.frag", "./assets/shaders/scene_f.spv",
 };
 
 static_assert((NOB_ARRAY_LEN(shaders)%2)==0, "shaders' length must be even!");

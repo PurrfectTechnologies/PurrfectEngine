@@ -25,24 +25,21 @@ protected:
       // mesh->initialize("../test/models/ico.obj");
       // if (!mesh->isValid()) return false;
       // object->addComponent(new purrMeshComp(mesh));
-      object->getTransform()->setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
+      object->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
       mScene->addObject(object);
     }
 
     purrObject *camObj = nullptr;
     { // Initialize camera
-      camObj = new purrObject(new purrTransform(glm::vec3(0.0f, 0.0f, -5.0f)));
+      camObj = new purrObject(new purrTransform(glm::vec3(0.0f, 0.0f, 0.0f)));
       camObj->addComponent(new purrCameraComp(new purrCamera()));
       mScene->addObject(camObj);
       mScene->setCamera(camObj);
     }
 
-    SetScene(mScene);
-
     purrRenderer3D *renderer = (purrRenderer3D*)purrRenderer::getInstance();
-    purrCameraComp *cameraComp = (purrCameraComp*)camObj->getComponent("cameraComponent");
-
-    return ((renderer->setObjectList({ purrObject3D{ glm::mat4(1.0f) } })) && (renderer->updateCamera(cameraComp->getCamera())));
+    renderer->setScene(mScene);
+    return renderer->update();
   }
 
   virtual bool update(float dt) override {
@@ -61,7 +58,6 @@ protected:
     delete mScene;
   }
 private:
-  purrAppRendererExt *mRendererExt = nullptr;
   purrScene *mScene = nullptr;
 };
 
