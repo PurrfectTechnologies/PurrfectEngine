@@ -18,6 +18,24 @@ public:
   }
 protected:
   virtual bool initialize() override {
+    input::GetEventHandler()->on("keyEvent", [](purrEvent *event){
+      purrKeyEvent *keyEvent = (purrKeyEvent*)event;
+      if (keyEvent->getAction() == input::button::Pressed) printf("Key pressed!\n");
+      else if (keyEvent->getAction() == input::button::Released) printf("Key released!\n");
+      else printf("Key repeat!\n");
+    });
+
+    input::GetEventHandler()->on("mouseButtonEvent", [](purrEvent *event){
+      purrMouseBtnEvent *mouseEvent = (purrMouseBtnEvent*)event;
+      if (mouseEvent->getAction() == input::button::Pressed) printf("Mouse button pressed!\n");
+      else printf("Mouse button released!\n");
+    });
+
+    input::GetEventHandler()->on("mouseMoveEvent", [](purrEvent *event){
+      purrMouseMoveEvent *mouseEvent = (purrMouseMoveEvent*)event;
+      printf("Mouse moved!\n");
+    });
+
     mScene = new purrScene();
     { // Initialize object
       purrObject *object = new purrObject();

@@ -5,8 +5,9 @@ namespace PurrfectEngine {
 
   namespace input {
 
-    using KeyCode = unsigned short; // uint16_t
-    using MouseCode = unsigned short;
+    using KeyCode      = uint16_t;
+    using MouseCode    = uint16_t;
+    using ButtonAction = uint16_t;
 
     namespace key {
     enum : KeyCode {
@@ -163,6 +164,16 @@ namespace PurrfectEngine {
     };
     }
 
+		namespace button {
+		enum : ButtonAction {
+			Pressed  = GLFW_PRESS,
+			Released = GLFW_RELEASE,
+			Repeat   = GLFW_REPEAT,
+		};
+		}
+
+		purrEventHandler<purrEvent> *GetEventHandler();
+
 	  void      SetWindow(purrWindow *window);
     bool      IsKeyDown(KeyCode key);
     bool      IsKeyUp(KeyCode key);
@@ -178,6 +189,37 @@ namespace PurrfectEngine {
     void SetMouseMode(MouseMode mode);
 
   }
+
+	class purrKeyEvent: public purrEvent {
+	public:
+		purrKeyEvent(input::KeyCode key, input::ButtonAction action);
+	public:
+		input::KeyCode getKey() const { return mKey; }
+		input::ButtonAction getAction() const { return mAction; }
+	private:
+		input::KeyCode mKey;
+		input::ButtonAction mAction;
+	};
+
+	class purrMouseBtnEvent: public purrEvent {
+	public:
+		purrMouseBtnEvent(input::MouseCode code, input::ButtonAction action);
+	public:
+		input::MouseCode getCode() const { return mCode; }
+		input::ButtonAction getAction() const { return mAction; }
+	private:
+		input::MouseCode mCode;
+		input::ButtonAction mAction;
+	};
+
+	class purrMouseMoveEvent: public purrEvent {
+	public:
+		purrMouseMoveEvent(glm::dvec2 pos);
+	public:
+		glm::dvec2 getPosition() const { return mPos; }
+	private:
+		glm::dvec2 mPos;
+	};
 
 }
 
