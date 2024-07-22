@@ -13,6 +13,8 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <thread>
+#include <atomic>
 
 class purrAudioFilter;
 
@@ -68,7 +70,7 @@ namespace PurrfectEngine {
     bool initialize();
     void cleanup();
 
-    bool load(const char *filename, ALuint buffer);
+    bool load(char *filename, ALuint buffer);
     void play(ALuint buffer);
     void pause(ALuint source);
     void resume(ALuint source);
@@ -89,8 +91,11 @@ namespace PurrfectEngine {
     ALuint mAuxEffectSlot = 0;
 
     std::map<const char *, std::shared_ptr<purrAudioFilter>> mFilters{};
+    std::thread mThread;
+    std::atomic<bool> mRunning;
   private:
     bool loadEFXExtensionFunctions();
+    void run();
   private:
     inline static purrAudioEngine *sInstance = nullptr;
   };

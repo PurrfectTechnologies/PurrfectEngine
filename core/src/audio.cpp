@@ -28,6 +28,7 @@ namespace PurrfectEngine {
   }
 
   bool purrAudioEngine::initialize() {
+    if (mRunning) return false;
     mDevice = alcOpenDevice(nullptr);
     if (!mDevice) return false;
 
@@ -55,10 +56,18 @@ namespace PurrfectEngine {
       return false;
     }
 
+    mRunning = true;
+    mThread = std::thread(&purrAudioEngine::run, this);
     return true;
   }
 
   void purrAudioEngine::cleanup() {
+    if (!mRunning) return;
+
+    mRunning = false;
+    if (mThread.joinable()) {
+      mThread.join();
+    } 
     if (mAuxEffectSlot != 0) {
       alDeleteAuxiliaryEffectSlots(1, &mAuxEffectSlot);
     }
@@ -74,7 +83,16 @@ namespace PurrfectEngine {
     }
   }
 
-  bool purrAudioEngine::load(const char *filename, ALuint buffer) {
+  void purrAudioEngine::run() {
+    while (mRunning) {
+      for (auto& [name, filter] : mFilters) {
+        filter->update();
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
+
+  bool purrAudioEngine::load(char *filename, ALuint buffer) {
     char *ext = NULL;
     { // Find extension of filename
       char *ptr = strrchr(filename, '.');
