@@ -123,56 +123,25 @@ namespace PurrfectEngine {
     purrRenderer({ new purrOffscreenRendererExt() })
   {}
 
-  bool purrRenderer3D::setObjectList(std::vector<purrObject3D> objects) {
-    if (mObjectsBuffer) delete mObjectsBuffer;
-    if (objects.size() <= 0) return true;
-    uint32_t objectCount = static_cast<uint32_t>(objects.size());
-    uint32_t size = sizeof(purrObject3D)*objectCount;
-
-    mObjectsBuffer = new purrBuffer();
-    mObjectsBuffer->initialize(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, true);
-
-    { // Copy objects
-      purrBuffer *stagingBuf = new purrBuffer();
-      if (stagingBuf->initialize(size, (VkBufferUsageFlagBits)0, false) != VK_SUCCESS) return false;
-      stagingBuf->copy(objects.data(), size, 0);
-      if (mObjectsBuffer->copy(stagingBuf, size, 0) != VK_SUCCESS) return false;
-      delete stagingBuf;
-    }
-
-    VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = mObjectsBuffer->get();
-    bufferInfo.offset = 0;
-    bufferInfo.range  = size;
-
-    VkWriteDescriptorSet writeInfo = {};
-    writeInfo.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeInfo.pNext            = VK_NULL_HANDLE;
-    writeInfo.dstSet           = mSceneSet;
-    writeInfo.dstBinding       = 1;
-    writeInfo.dstArrayElement  = 0;
-    writeInfo.descriptorCount  = 1;
-    writeInfo.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    writeInfo.pImageInfo       = VK_NULL_HANDLE;
-    writeInfo.pBufferInfo      = &bufferInfo;
-    writeInfo.pTexelBufferView = VK_NULL_HANDLE;
-
-    vkUpdateDescriptorSets(mDevice, 1, &writeInfo, 0, VK_NULL_HANDLE);
-    return true;
+  void purrRenderer3D::setScene(purrScene *scene) {
+    mScene = scene;
   }
 
-  bool purrRenderer3D::updateCamera(purrCamera *camera) {
-    if (!camera) return false;
-    void *data = malloc(sizeof(glm::mat4)*2);
-    glm::mat4 proj = camera->getProjection();
-    glm::mat4 view = camera->getView();
-    memcpy(data,                            &proj, sizeof(glm::mat4));
-    memcpy(((char*)data)+sizeof(glm::mat4), &view, sizeof(glm::mat4));
-    purrBuffer *stagingBuf = new purrBuffer();
-    if (stagingBuf->initialize(sizeof(glm::mat4)*2, (VkBufferUsageFlagBits)0, false) != VK_SUCCESS) return false;
-    stagingBuf->copy(data, sizeof(glm::mat4)*2, 0);
-    if (mCameraBuffer->copy(stagingBuf, sizeof(glm::mat4)*2, 0) != VK_SUCCESS) return false;
-    delete stagingBuf;
+  bool purrRenderer3D::update() {
+    if (!mScene) return false;
+
+    purrObject *cameraObject = mScene->getCamera();
+    purrCameraComp *cameraComp = nullptr;
+    purrCamera *camera = nullptr;
+    if (cameraObject && (cameraComp = (purrCameraComp*)cameraObject->getComponent("cameraComponent")) && (camera = cameraComp->getCamera())) if (!updateCamera(camera)) return false;
+
+    std::vector<purrObject3D> objects{};
+    for (purrObject *obj: mScene->getObjects()) objects.push_back(purrObject3D{obj->getTransform()->getTransform()});
+    if (!updateObjects(objects)) return false;
+
+    std::vector<purrLight> lights = { { {0.0f,0.0f,4.0f,1.0f}, {1.0f,0.0f,0.0f,1.0f} } };
+    if (!updateLights(lights)) return false;
+
     return true;
   }
 
@@ -210,17 +179,20 @@ namespace PurrfectEngine {
     { // Load mesh
       size_t temp = 0;
       purrMesh3D **meshes = NULL;
-      if (!purrModel3D::load("./assets/models/ico.obj", &meshes, &temp) || temp != 1) return false;
+      if (!purrModel3D::load("./assets/models/pyramid.obj", &meshes, &temp) || temp != 1) return false;
       mMesh = meshes[0];
     }
 
     { // Create scene objects layout
       VkDescriptorSetLayoutBinding bindings[] = {
         VkDescriptorSetLayoutBinding{
-          0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, VK_NULL_HANDLE
+          0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT, VK_NULL_HANDLE
         },
         VkDescriptorSetLayoutBinding{
           1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, VK_NULL_HANDLE
+        },
+        VkDescriptorSetLayoutBinding{
+          2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, VK_NULL_HANDLE
         },
       };
 
@@ -240,7 +212,7 @@ namespace PurrfectEngine {
           VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1
         },
         VkDescriptorPoolSize{
-          VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1
+          VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2
         }
       };
 
@@ -267,7 +239,7 @@ namespace PurrfectEngine {
 
     { // Update scene objects descriptor set
       mCameraBuffer = new purrBuffer();
-      mCameraBuffer->initialize(sizeof(glm::mat4)*2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, true);
+      if (mCameraBuffer->initialize(sizeof(glm::mat4)*2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, true)) return false;
 
       VkDescriptorBufferInfo bufferInfo = {};
       bufferInfo.buffer = mCameraBuffer->get();
@@ -313,8 +285,9 @@ namespace PurrfectEngine {
   }
 
   void purrRenderer3D::cleanup_() {
-    delete mCameraBuffer;
-    delete mObjectsBuffer;
+    if (mCameraBuffer)  delete mCameraBuffer;
+    if (mObjectsBuffer) delete mObjectsBuffer;
+    if (mLightBuffer)   delete mLightBuffer;
     vkDestroyDescriptorSetLayout(mDevice, mSceneLayout, VK_NULL_HANDLE);
     vkDestroyDescriptorPool(mDevice, mDescriptorPool, VK_NULL_HANDLE);
 
@@ -322,6 +295,12 @@ namespace PurrfectEngine {
     delete mSampler;
     delete mRenderTarget;
     delete mPipeline;
+  }
+
+  purrRendererInitInfo purrRenderer3D::getInitInfo() {
+    return purrRendererInitInfo{
+      { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }, nullptr, VkPhysicalDeviceFeatures{}, {}, {}, purrRendererSwapchainInfo{ true }
+    };
   }
 
   VkFormat purrRenderer3D::getRenderTargetFormat() {
@@ -342,6 +321,98 @@ namespace PurrfectEngine {
 
   purrRenderTarget *purrRenderer3D::getRenderTarget() {
     return mRenderTarget;
+  }
+
+  bool purrRenderer3D::updateCamera(purrCamera *camera) {
+    if (!camera) return false;
+    void *data = malloc(sizeof(glm::mat4)*2);
+    glm::mat4 proj = camera->getProjection();
+    glm::mat4 view = camera->getView();
+    memcpy(data,                            &proj, sizeof(glm::mat4));
+    memcpy(((char*)data)+sizeof(glm::mat4), &view, sizeof(glm::mat4));
+    purrBuffer *stagingBuf = new purrBuffer();
+    if (stagingBuf->initialize(sizeof(glm::mat4)*2, (VkBufferUsageFlagBits)0, false) != VK_SUCCESS) return false;
+    stagingBuf->copy(data, sizeof(glm::mat4)*2, 0);
+    if (mCameraBuffer->copy(stagingBuf, sizeof(glm::mat4)*2, 0) != VK_SUCCESS) return false;
+    delete stagingBuf;
+    return true;
+  }
+
+  bool purrRenderer3D::updateObjects(std::vector<purrObject3D> objects) {
+    if (mObjectsBuffer) delete mObjectsBuffer;
+    if (objects.size() <= 0) return true;
+    uint32_t objectCount = static_cast<uint32_t>(objects.size());
+    uint32_t size = sizeof(purrObject3D)*objectCount;
+
+    mObjectsBuffer = new purrBuffer();
+    mObjectsBuffer->initialize(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, true);
+
+    { // Copy objects
+      purrBuffer *stagingBuf = new purrBuffer();
+      if (stagingBuf->initialize(size, (VkBufferUsageFlagBits)0, false) != VK_SUCCESS) return false;
+      stagingBuf->copy(objects.data(), size, 0);
+      if (mObjectsBuffer->copy(stagingBuf, size, 0) != VK_SUCCESS) return false;
+      delete stagingBuf;
+    }
+
+    VkDescriptorBufferInfo bufferInfo = {};
+    bufferInfo.buffer = mObjectsBuffer->get();
+    bufferInfo.offset = 0;
+    bufferInfo.range  = size;
+
+    VkWriteDescriptorSet writeInfo = {};
+    writeInfo.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeInfo.pNext            = VK_NULL_HANDLE;
+    writeInfo.dstSet           = mSceneSet;
+    writeInfo.dstBinding       = 1;
+    writeInfo.dstArrayElement  = 0;
+    writeInfo.descriptorCount  = 1;
+    writeInfo.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    writeInfo.pImageInfo       = VK_NULL_HANDLE;
+    writeInfo.pBufferInfo      = &bufferInfo;
+    writeInfo.pTexelBufferView = VK_NULL_HANDLE;
+
+    vkUpdateDescriptorSets(mDevice, 1, &writeInfo, 0, VK_NULL_HANDLE);
+    return true;
+  }
+
+  bool purrRenderer3D::updateLights(std::vector<purrLight> lights) {
+    if (mLightBuffer) delete mLightBuffer;
+    if (lights.size() <= 0) return true;
+    uint32_t lightCount = static_cast<uint32_t>(lights.size());
+    VkDeviceSize size = sizeof(glm::vec4)+sizeof(purrLight)*lightCount;
+
+    mLightBuffer = new purrBuffer();
+    mLightBuffer->initialize(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, true);
+
+    { // Copy light
+      purrBuffer *stagingBuf = new purrBuffer();
+      if (stagingBuf->initialize(size, (VkBufferUsageFlagBits)0, false) != VK_SUCCESS) return false;
+      stagingBuf->copy(&lightCount, sizeof(glm::vec4), 0);
+      stagingBuf->copy(lights.data(), size-sizeof(glm::vec4), sizeof(glm::vec4));
+      if (mLightBuffer->copy(stagingBuf, size, 0) != VK_SUCCESS) return false;
+      delete stagingBuf;
+    }
+
+    VkDescriptorBufferInfo bufferInfo = {};
+    bufferInfo.buffer = mLightBuffer->get();
+    bufferInfo.offset = 0;
+    bufferInfo.range  = size;
+
+    VkWriteDescriptorSet writeInfo = {};
+    writeInfo.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeInfo.pNext            = VK_NULL_HANDLE;
+    writeInfo.dstSet           = mSceneSet;
+    writeInfo.dstBinding       = 2;
+    writeInfo.dstArrayElement  = 0;
+    writeInfo.descriptorCount  = 1;
+    writeInfo.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    writeInfo.pImageInfo       = VK_NULL_HANDLE;
+    writeInfo.pBufferInfo      = &bufferInfo;
+    writeInfo.pTexelBufferView = VK_NULL_HANDLE;
+
+    vkUpdateDescriptorSets(mDevice, 1, &writeInfo, 0, VK_NULL_HANDLE);
+    return true;
   }
 
 }

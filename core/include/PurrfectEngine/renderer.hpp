@@ -72,7 +72,7 @@ namespace PurrfectEngine {
     purrRenderer(std::vector<purrRendererExt*> extensions);
     ~purrRenderer();
 
-    bool initialize(purrWindow *window, purrRendererInitInfo initInfo);
+    bool initialize(purrWindow *window);
     bool render();
     void cleanup();
   public:
@@ -86,6 +86,8 @@ namespace PurrfectEngine {
     virtual bool resize_() = 0;
     virtual bool render_(VkCommandBuffer cmdBuf) = 0;
     virtual void cleanup_() = 0;
+
+    virtual purrRendererInitInfo getInitInfo() = 0;
 
     virtual VkFormat getRenderTargetFormat() = 0;
     virtual VkFormat getHdrFormat() = 0;
@@ -307,6 +309,8 @@ namespace PurrfectEngine {
     VkFramebuffer mFramebuffer = VK_NULL_HANDLE;
     VkRenderPass  mRenderPass  = VK_NULL_HANDLE;
   };
+
+  // TODO: refactor purrPipeline into purrMaterial
 
   struct purrPipelineInitInfo {
     std::vector<std::pair<VkShaderStageFlagBits, const char *>> shaders;

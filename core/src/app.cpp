@@ -16,9 +16,7 @@ namespace PurrfectEngine {
     input::SetWindow(mWindow);
 
     mRenderer = new purrRenderer3D();
-    return mRenderer->initialize(mWindow, purrRendererInitInfo{
-      { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }
-    });
+    return mRenderer->initialize(mWindow);
   }
 
   bool purrAppRendererExt::preUpdate() {
@@ -64,10 +62,6 @@ namespace PurrfectEngine {
 
     extsCleanup();
     cleanup();
-  }
-
-  void purrApp::SetScene(purrScene *scene) {
-    mScene = scene;
   }
 
 }
