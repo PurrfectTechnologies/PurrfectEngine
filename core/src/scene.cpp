@@ -44,11 +44,19 @@ namespace PurrfectEngine {
   }
 
   purrObject *purrScene::newObject() {
-    purrObject *obj = new purrObject();
+    purrObject *obj = new purrObject(this, new purrTransform());
     if (!addObject(obj)) {
       delete obj; return nullptr;
     }
     return obj;
+  }
+
+  bool purrScene::addChild(purrObject *obj) {
+    if (std::find(mChildrenUuids.begin(), mChildrenUuids.end(), obj->getUuid()) != mChildrenUuids.end())
+      return false;
+    mChildrenUuids.push_back(obj->getUuid());
+    mChildrenObjects.push_back(obj);
+    return true;
   }
 
 }

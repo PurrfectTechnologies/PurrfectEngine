@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <optional>
 #include <unordered_map>
 
 #include <stdint.h>
@@ -11,8 +12,7 @@ namespace PurrfectEngine {
 
   struct PUID {
   public:
-    constexpr PUID() = default;
-
+    PUID();
     constexpr PUID(uint32_t id) : mId(id) {}
 
     friend bool operator==(PUID dis, PUID other) {
@@ -22,7 +22,6 @@ namespace PurrfectEngine {
     uint32_t operator()() {
       return mId;
     }
-  
   private:
     uint32_t mId = 0;
   };
@@ -36,39 +35,10 @@ namespace PurrfectEngine {
   private:
   };
 
+  class purrScene;
   class purrCamera;
   class purrTransform;
   class purrAudioEngine;
-
-  // class purrMesh;
-  // class purrMeshComp : public purrComponent {
-  // public:
-  //   purrMeshComp(purrMesh *mesh);
-  //   // purrMeshComp(purrMesh2D *mesh);
-  //   purrMeshComp(bool is2D, const char *filename);
-  //   virtual ~purrMeshComp() override;
-
-  //   virtual const char *getName() override { return "meshComponent"; }
-
-  //   purrMesh *getMesh() const { return mMesh; }
-  // private:
-  //   bool is2D = false;
-  //   purrMesh *mMesh = nullptr;
-  //   // purrMesh2D *mMesh2D = nullptr;
-  // };
-
-  // class purrLight;
-  // class purrLightComp : public purrComponent {
-  // public:
-  //   purrLightComp(purrLight *light);
-  //   virtual ~purrLightComp() override;
-
-  //   virtual const char *getName() override { return "lightComponent"; }
-
-  //   purrLight *getLight() const { return mLight; }
-  // private:
-  //   purrLight *mLight = nullptr;
-  // };
 
   class purrCameraComp : public purrComponent {
   public:
@@ -96,7 +66,7 @@ namespace PurrfectEngine {
 
   class purrObject {
   public:
-    purrObject(purrTransform *transform = new purrTransform());
+    purrObject(purrScene *scene, purrTransform *transform);
     ~purrObject();
 
     bool addComponent(purrComponent* component);
@@ -107,11 +77,21 @@ namespace PurrfectEngine {
     purrTransform *getTransform() const { return mTransform; }
     // void setTransform(purrTransform *trans) { mTransform = trans; }
 
+    purrObject *newChild();
+
+    bool isChild() const { return mParent.has_value(); }
+    purrObject *getParent();
+    bool isParent() const { return mChildren.size()>0; }
+    std::vector<purrObject*> getChildren();
+
     PUID getUuid() const { return mUuid; }
   private:
+    purrScene *mScene = nullptr;
     PUID mUuid{};
-    purrTransform *mTransform = new purrTransform();
+    purrTransform *mTransform = nullptr;
 
+    std::optional<PUID> mParent{};
+    std::vector<PUID> mChildren{};
     std::vector<const char *> mCompNames{};
     std::vector<purrComponent*> mComponents{};
   };

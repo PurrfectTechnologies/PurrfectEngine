@@ -6,6 +6,7 @@
 
 namespace PurrfectEngine {
   class purrScene {
+    friend class purrObject;
   public:
     purrScene();
     purrScene(PUID uuid, std::vector<purrObject*> objects, purrObject *cameraObject);
@@ -23,9 +24,13 @@ namespace PurrfectEngine {
   public:
     std::vector<purrObject*> getObjects() const { return mObjects; }
   private:
+    bool addChild(purrObject *obj);
+  private:
     PUID mUuid{};
     std::vector<PUID> mUuids{};
     std::vector<purrObject*> mObjects{};
+    std::vector<PUID> mChildrenUuids{};
+    std::vector<purrObject*> mChildrenObjects{};
     purrObject *mCameraObject = nullptr;
   };
 

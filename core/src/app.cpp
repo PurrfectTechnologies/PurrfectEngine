@@ -8,6 +8,11 @@ namespace PurrfectEngine {
     mRenderer(renderer), mWindowInfo(windowInfo), mRendererInfo(rendererInfo)
   {}
 
+  purrAppRendererExt::~purrAppRendererExt() {
+    delete mRenderer;
+    delete mWindow;
+  }
+
   bool purrAppRendererExt::initialize() {
     mWindow = new purrWindow();
     if (!mWindow->initialize(purrWindowInitInfo{
@@ -32,8 +37,6 @@ namespace PurrfectEngine {
   void purrAppRendererExt::cleanup() {
     mRenderer->waitIdle();
     mRenderer->cleanup();
-    delete mRenderer;
-    delete mWindow;
   }
 
   purrApp::purrApp(purrAppCreateInfo createInfo, std::vector<purrAppExt*> extensions):
@@ -62,6 +65,7 @@ namespace PurrfectEngine {
 
     extsCleanup();
     cleanup();
+    for (purrAppExt *ext: getExtensions()) delete ext;
   }
 
 }

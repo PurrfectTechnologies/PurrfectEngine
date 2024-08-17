@@ -39,15 +39,24 @@ namespace PurrfectEngine {
 
     bool copy(std::vector<purrVertex3D> &vertices,
               std::vector<uint32_t>     &indices);
+
+    static bool loadModel(const char *filename, purrScene *scene, purrObject **root);
   private:
     uint32_t mIndexCount = 0;
     purrBuffer *mVBuffer = nullptr;
     purrBuffer *mIBuffer = nullptr;
   };
 
-  class purrModel3D {
+  class purrMesh3DComp : public purrComponent {
   public:
-    static bool load(const char *filename, purrMesh3D ***meshes, size_t *meshCount);
+    purrMesh3DComp(purrMesh3D *mesh);
+    virtual ~purrMesh3DComp() override;
+
+    virtual const char *getName() override { return "mesh3DComponent"; }
+
+    purrMesh3D *getMesh() const { return mMesh; };
+  private:
+    purrMesh3D *mMesh = nullptr;
   };
 
   struct purrObject3D {
@@ -81,6 +90,8 @@ namespace PurrfectEngine {
     virtual VkSampleCountFlagBits getSampleCount() override;
     virtual purrRenderTarget *getRenderTarget()    override;
   private:
+    std::vector<purrObject3D> updateObjects(std::vector<purrObject*> objects);
+  private:
     bool updateCamera(purrCamera *camera);
     bool updateObjects(std::vector<purrObject3D> objects);
     bool updateLights(std::vector<purrLight> lights);
@@ -94,7 +105,6 @@ namespace PurrfectEngine {
     purrBuffer *mLightBuffer = nullptr;
   private:
     purrScene        *mScene = nullptr;
-    purrMesh3D       *mMesh = nullptr;
     purrSampler      *mSampler = nullptr;
     purrRenderTarget *mRenderTarget = nullptr;
     purrPipeline     *mPipeline = nullptr;

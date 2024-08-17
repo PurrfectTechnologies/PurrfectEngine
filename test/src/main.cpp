@@ -20,36 +20,28 @@ protected:
   virtual bool initialize() override {
     input::GetEventHandler()->on("keyEvent", [](purrEvent *event){
       purrKeyEvent *keyEvent = (purrKeyEvent*)event;
-      if (keyEvent->getAction() == input::button::Pressed) printf("Key pressed!\n");
-      else if (keyEvent->getAction() == input::button::Released) printf("Key released!\n");
-      else printf("Key repeat!\n");
     });
 
     input::GetEventHandler()->on("mouseButtonEvent", [](purrEvent *event){
       purrMouseBtnEvent *mouseEvent = (purrMouseBtnEvent*)event;
-      if (mouseEvent->getAction() == input::button::Pressed) printf("Mouse button pressed!\n");
-      else printf("Mouse button released!\n");
     });
 
     input::GetEventHandler()->on("mouseMoveEvent", [](purrEvent *event){
       purrMouseMoveEvent *mouseEvent = (purrMouseMoveEvent*)event;
-      printf("Mouse moved!\n");
     });
 
     mScene = new purrScene();
     { // Initialize object
-      purrObject *object = new purrObject();
-      // purrMesh *mesh = new purrMesh();
-      // mesh->initialize("../test/models/ico.obj");
-      // if (!mesh->isValid()) return false;
-      // object->addComponent(new purrMeshComp(mesh));
-      object->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
-      mScene->addObject(object);
+      purrObject *obj = nullptr;
+      if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &obj)) return 1;
+      obj->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
+      mScene->addObject(obj);
     }
 
     purrObject *camObj = nullptr;
     { // Initialize camera
-      camObj = new purrObject(new purrTransform(glm::vec3(0.0f, 0.0f, 0.0f)));
+      camObj = mScene->newObject();
+      if (!camObj) return false;
       camObj->addComponent(new purrCameraComp(new purrCamera()));
       mScene->addObject(camObj);
       mScene->setCamera(camObj);
@@ -64,10 +56,12 @@ protected:
     int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
     int y = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
 
-    glm::vec3 rot = glm::eulerAngles(mScene->getCamera()->getTransform()->getRotation());
-    rot.x -= y * dt;
-    rot.y -= x * dt;
-    mScene->getCamera()->getTransform()->setRotation(glm::quat(rot));
+    if (mScene->getCamera() && mScene->getCamera()->getTransform()) {
+      glm::vec3 rot = glm::eulerAngles(mScene->getCamera()->getTransform()->getRotation());
+      rot.x -= y * dt;
+      rot.y -= x * dt;
+      mScene->getCamera()->getTransform()->setRotation(glm::quat(rot));
+    }
 
     return true;
   }

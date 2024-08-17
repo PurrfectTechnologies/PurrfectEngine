@@ -10,6 +10,9 @@ namespace PurrfectEngine {
   static std::mt19937_64 sEngine(sRandomDevice());
   static std::uniform_int_distribution<uint32_t> sUniformDistribution;
 
+  PUID::PUID():
+    mId(sUniformDistribution(sEngine))
+  {}
 
   purrComponent::purrComponent()
   {}
@@ -65,9 +68,9 @@ namespace PurrfectEngine {
     }
   }
 
-  purrObject::purrObject(purrTransform *transform):
-    mTransform(transform)
-  {}
+  purrObject::purrObject(purrScene *scene, purrTransform *transform):
+    mScene(scene), mTransform(transform)
+  { assert(mTransform && "`transform` is a need, and I need to `transform`!"); }
 
   purrObject::~purrObject() {
     delete mTransform;
@@ -83,6 +86,7 @@ namespace PurrfectEngine {
   }
 
   bool purrObject::addComponent(purrCameraComp* component) {
+    assert(mTransform && "`mTransform` is a need, and I need to `mTransform`!");
     component->getCamera()->setTransform(mTransform);
     return addComponent((purrComponent*)component);
   }
@@ -103,4 +107,27 @@ namespace PurrfectEngine {
     return true;
   }
 
+  purrObject *purrObject::newChild() {
+    purrObject *child = new purrObject(mScene, new purrTransform());
+    if (!mScene->addChild(child)) {
+      delete child;
+      return nullptr;
+    }
+    mChildren.push_back(child->mUuid);
+    child->mParent = mUuid;
+    return child;
+  }
+
+  purrObject *purrObject::getParent() {
+    if (!mParent.has_value()) return nullptr;
+    return mScene->getObject(mParent.value());
+  }
+
+  std::vector<purrObject*> purrObject::getChildren() {
+    if (!isParent()) return {};
+    std::vector<purrObject*> objects{};
+    objects.reserve(mChildren.size());
+    for (PUID puid: mChildren) objects.push_back(mScene->getObject(puid));
+    return objects;
+  }
 }

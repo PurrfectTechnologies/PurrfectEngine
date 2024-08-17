@@ -36,7 +36,9 @@ namespace PurrfectEngine {
   { sInstance = this; }
 
   purrRenderer::~purrRenderer() {
-
+    vkDestroyDevice(mDevice, VK_NULL_HANDLE);
+    vkDestroySurfaceKHR(mInstance, mSurface, VK_NULL_HANDLE);
+    vkDestroyInstance(mInstance, VK_NULL_HANDLE);
   }
 
   bool purrRenderer::initialize(purrWindow *window) {
@@ -635,9 +637,6 @@ namespace PurrfectEngine {
     vkDestroyPipeline(mDevice, mPipeline, VK_NULL_HANDLE);
     vkDestroyPipelineLayout(mDevice, mPipelineL, VK_NULL_HANDLE);
     vkDestroyRenderPass(mDevice, mRP, VK_NULL_HANDLE);
-    vkDestroyDevice(mDevice, VK_NULL_HANDLE);
-    vkDestroySurfaceKHR(mInstance, mSurface, VK_NULL_HANDLE);
-    vkDestroyInstance(mInstance, VK_NULL_HANDLE);
 
     free(mRSemaphs);
     free(mISemaphs);
@@ -987,8 +986,8 @@ namespace PurrfectEngine {
 
   void purrBuffer::cleanup() {
     purrRenderer *renderer = purrRenderer::getInstance();
-    vkDestroyBuffer(renderer->mDevice, mBuffer, VK_NULL_HANDLE);
-    vkFreeMemory(renderer->mDevice, mMemory, VK_NULL_HANDLE);
+    if (mBuffer) vkDestroyBuffer(renderer->mDevice, mBuffer, VK_NULL_HANDLE);
+    if (mMemory) vkFreeMemory(renderer->mDevice, mMemory, VK_NULL_HANDLE);
   }
 
   void purrBuffer::copy(void *data, VkDeviceSize size, VkDeviceSize offset) {

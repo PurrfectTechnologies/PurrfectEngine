@@ -58,7 +58,7 @@ namespace PurrfectEngine {
     return true;
   }
 
-  bool load_single_mesh(const aiScene *scene, aiMesh *mesh, purrMesh3D **mesh3D) {
+  bool load_single_mesh(const aiScene *scene, aiMesh *mesh, purrMesh3D *mesh3D) {
     std::vector<uint32_t> indices{};
     for (uint32_t i = 0; i < mesh->mNumFaces; ++i) {
       aiFace &face = mesh->mFaces[i];
@@ -79,44 +79,35 @@ namespace PurrfectEngine {
       ):glm::vec2(0.0f)),
       glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z)
     });
-    *mesh3D = new purrMesh3D();
-    return (*mesh3D)->initialize() && (*mesh3D)->copy(vertices, indices);
+    return mesh3D->initialize() && mesh3D->copy(vertices, indices);
   }
 
-  bool purrModel3D::load(const char *filename, purrMesh3D ***meshes, size_t *meshCount) {
+  bool purrMesh3D::loadModel(const char *filename, purrScene *scene, purrObject **root) {
     Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile(filename, (aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices));
-    if (!scene) return false;
+    const aiScene *paiScene = importer.ReadFile(filename, (aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices));
+    if (!paiScene) return false;
 
-    size_t capacity = 0;
-   *meshCount       = 0;
-   *meshes          = nullptr;
+    *root = scene->newObject();
 
-    purrMesh3D **ptr = nullptr;
-    auto push = [&](purrMesh3D *mesh) {
-      if (capacity <= *meshCount) {
-        if  (capacity <= 0) capacity = 2;
-        else capacity *= 2;
-        *meshes = (purrMesh3D**)realloc(*meshes, capacity);
-        if (!(*meshes)) return false;
-      }
-      ptr = &(*meshes)[*meshCount];
-     *ptr = mesh;
-  ++(*meshCount);
-      return true;
-    };
-
-    for (uint32_t i = 0; i < scene->mNumMeshes; ++i) {
-      purrMesh3D *mesh = nullptr;
-      if (!load_single_mesh(scene, scene->mMeshes[i], &mesh)) { if (mesh) delete mesh; goto load_failed; }
-      if (!push(mesh)) { delete mesh; goto load_failed; }
+    for (uint32_t i = 0; i < paiScene->mNumMeshes; ++i) {
+      purrObject *obj = ((paiScene->mNumMeshes>1)?(*root)->newChild():*root);
+      purrMesh3D *mesh = new purrMesh3D();
+      if (!load_single_mesh(paiScene, paiScene->mMeshes[i], mesh)) { delete mesh; goto load_failed; }
+      obj->addComponent(new purrMesh3DComp(mesh));
     }
 
     return true;
   load_failed:
-    while (*meshCount > 0) delete (*meshes)[--(*meshCount)];
-    if (meshes) free(meshes);
+    scene->removeObject((*root)->getUuid());
     return false;
+  }
+
+  purrMesh3DComp::purrMesh3DComp(purrMesh3D *mesh):
+    mMesh(mesh)
+  {}
+
+  purrMesh3DComp::~purrMesh3DComp() {
+    if (mMesh) delete mMesh;
   }
 
   purrRenderer3D::purrRenderer3D():
@@ -135,8 +126,7 @@ namespace PurrfectEngine {
     purrCamera *camera = nullptr;
     if (cameraObject && (cameraComp = (purrCameraComp*)cameraObject->getComponent("cameraComponent")) && (camera = cameraComp->getCamera())) if (!updateCamera(camera)) return false;
 
-    std::vector<purrObject3D> objects{};
-    for (purrObject *obj: mScene->getObjects()) objects.push_back(purrObject3D{obj->getTransform()->getTransform()});
+    std::vector<purrObject3D> objects = updateObjects(mScene->getObjects());
     if (!updateObjects(objects)) return false;
 
     std::vector<purrLight> lights = { { {0.0f,0.0f,4.0f,1.0f}, {1.0f,0.0f,0.0f,1.0f} } };
@@ -175,13 +165,6 @@ namespace PurrfectEngine {
     }
     mRenderTarget = new purrRenderTarget();
     mPipeline = new purrPipeline();
-
-    { // Load mesh
-      size_t temp = 0;
-      purrMesh3D **meshes = NULL;
-      if (!purrModel3D::load("./assets/models/pyramid.obj", &meshes, &temp) || temp != 1) return false;
-      mMesh = meshes[0];
-    }
 
     { // Create scene objects layout
       VkDescriptorSetLayoutBinding bindings[] = {
@@ -271,13 +254,21 @@ namespace PurrfectEngine {
   }
 
   bool purrRenderer3D::render_(VkCommandBuffer cmdBuf) {
+    if (!mScene) return false;
     mRenderTarget->begin(cmdBuf);
     mPipeline->bind(cmdBuf);
 
     vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->getLayout(), 0, 1, &mSceneSet, 0, VK_NULL_HANDLE);
-    glm::ivec4 data = {0, 0, 0, 0};
-    vkCmdPushConstants(cmdBuf, mPipeline->getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::ivec4), &data);
-    mMesh->render(cmdBuf);
+    size_t idx = 0;
+    for (purrObject *object : mScene->getObjects()) {
+      purrMesh3DComp *comp = nullptr;
+      if (comp = (purrMesh3DComp*)object->getComponent("mesh3DComponent")) {
+        glm::ivec4 data = {idx, 0, 0, 0};
+        vkCmdPushConstants(cmdBuf, mPipeline->getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::ivec4), &data);
+        comp->getMesh()->render(cmdBuf);
+      }
+      ++idx;
+    }
 
     mRenderTarget->end(cmdBuf);
 
@@ -291,7 +282,6 @@ namespace PurrfectEngine {
     vkDestroyDescriptorSetLayout(mDevice, mSceneLayout, VK_NULL_HANDLE);
     vkDestroyDescriptorPool(mDevice, mDescriptorPool, VK_NULL_HANDLE);
 
-    delete mMesh;
     delete mSampler;
     delete mRenderTarget;
     delete mPipeline;
@@ -321,6 +311,18 @@ namespace PurrfectEngine {
 
   purrRenderTarget *purrRenderer3D::getRenderTarget() {
     return mRenderTarget;
+  }
+
+  std::vector<purrObject3D> purrRenderer3D::updateObjects(std::vector<purrObject*> objects) {
+    std::vector<purrObject3D> vec = {};
+    for (purrObject *obj: objects) {
+      vec.push_back(purrObject3D{obj->getTransform()->getTransform()});
+      if (obj->isParent()) {
+        std::vector<purrObject3D> vec2 = updateObjects(obj->getChildren());
+        vec.insert(vec.end(), vec2.begin(), vec2.end());
+      }
+    }
+    return vec;
   }
 
   bool purrRenderer3D::updateCamera(purrCamera *camera) {

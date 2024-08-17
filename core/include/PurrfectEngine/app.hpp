@@ -20,6 +20,7 @@ namespace PurrfectEngine {
   class purrAppRendererExt: public purrAppExt {
   public:
     purrAppRendererExt(purrRenderer *renderer, purrWindowInitInfo windowInfo, purrRendererInitInfo rendererInfo);
+    ~purrAppRendererExt();
 
     virtual bool initialize() override;
     virtual bool preUpdate()  override;
