@@ -1,7 +1,9 @@
 #ifndef PURRENGINE_AUDIO_HPP_
 #define PURRENGINE_AUDIO_HPP_
 
+#ifndef AL_LIBTYPE_STATIC
 #define AL_LIBTYPE_STATIC
+#endif
 
 #include <AL/al.h>
 #include <AL/alc.h>
