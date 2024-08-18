@@ -39,6 +39,31 @@ namespace PurrfectEngine {
     mRenderer->cleanup();
   }
 
+  purrAppAudioExt::purrAppAudioExt()
+  {}
+
+  purrAppAudioExt::~purrAppAudioExt() {
+
+  }
+
+  bool purrAppAudioExt::initialize() {
+    return purrAudioEngine::create() && purrAudioEngine::getInstance()->initialize();
+  }
+
+  bool purrAppAudioExt::preUpdate() {
+    return true;
+  }
+
+  bool purrAppAudioExt::update() {
+    if (!purrAudioEngine::getInstance()) return false;
+    purrAudioEngine::getInstance()->update();
+    return true;
+  }
+
+  void purrAppAudioExt::cleanup() {
+    delete purrAudioEngine::getInstance();
+  }
+
   purrApp::purrApp(purrAppCreateInfo createInfo, std::vector<purrAppExt*> extensions):
     purrExtendable<purrAppExt>(extensions), mCreateInfo(createInfo)
   {

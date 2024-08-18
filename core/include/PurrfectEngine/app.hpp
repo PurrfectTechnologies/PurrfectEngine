@@ -34,6 +34,17 @@ namespace PurrfectEngine {
     purrRenderer *mRenderer = nullptr;
   };
 
+  class purrAppAudioExt: public purrAppExt {
+  public:
+    purrAppAudioExt();
+    ~purrAppAudioExt();
+
+    virtual bool initialize() override;
+    virtual bool preUpdate()  override;
+    virtual bool update()     override;
+    virtual void cleanup()    override;
+  };
+
   class purrApp: public purrExtendable<purrAppExt> {
   public:
     purrApp(purrAppCreateInfo createInfo, std::vector<purrAppExt*> extensions);

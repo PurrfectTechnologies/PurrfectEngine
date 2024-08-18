@@ -9,7 +9,8 @@ class testApp: public purrApp {
 public:
   testApp():
     purrApp(purrAppCreateInfo{"PurrEngineTest"}, {
-      new purrAppRendererExt(new purrRenderer3D(), purrWindowInitInfo{"PurrfectEngine - Test", 1920, 1080}, purrRendererInitInfo{{ VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }})
+      new purrAppRendererExt(new purrRenderer3D(), purrWindowInitInfo{"PurrfectEngine - Test", 1920, 1080}, purrRendererInitInfo{{ VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }}),
+      new purrAppAudioExt()
     })
   {}
 
@@ -47,6 +48,13 @@ protected:
       mScene->setCamera(camObj);
     }
 
+    mAudioListener = new purrAudioListener(new purrTransform());
+    mAudioSource = purrAudioEngine::getInstance()->newSource(new purrTransform());
+    // We don't have an example sound effect :p
+    // if (!purrAudioEngine::getInstance()->load("./assets/sound/sound.wav", &mAudioSource) ||
+    //     !mAudioSource->initialize()) return false;
+    mAudioSource->play();
+
     purrRenderer3D *renderer = (purrRenderer3D*)purrRenderer::getInstance();
     renderer->setScene(mScene);
     return renderer->update();
@@ -68,9 +76,12 @@ protected:
 
   virtual void cleanup() override {
     delete mScene;
+    delete mAudioListener;
   }
 private:
   purrScene *mScene = nullptr;
+  purrAudioListener *mAudioListener = nullptr;
+  purrAudioSource *mAudioSource = nullptr;
 };
 
 purrApp *PurrfectEngine::CreateApp() {

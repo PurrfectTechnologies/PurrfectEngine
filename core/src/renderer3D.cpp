@@ -33,9 +33,9 @@ namespace PurrfectEngine {
   }
 
   bool purrMesh3D::copy(std::vector<purrVertex3D> &vertices, std::vector<uint32_t> &indices) {
-    uint32_t vertexBufSize = sizeof(purrVertex3D) * vertices.size();
+    uint32_t vertexBufSize = static_cast<uint32_t>(sizeof(purrVertex3D) * vertices.size());
     mIndexCount = static_cast<uint32_t>(indices.size());
-    uint32_t indexBufSize = sizeof(uint32_t) * static_cast<uint32_t>(indices.size());
+    uint32_t indexBufSize = static_cast<uint32_t>(sizeof(uint32_t) * indices.size());
     if (mVBuffer->initialize(vertexBufSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, true) != VK_SUCCESS) return false;
     if (mIBuffer->initialize(indexBufSize,  VK_BUFFER_USAGE_INDEX_BUFFER_BIT, true) != VK_SUCCESS) return false;
 
