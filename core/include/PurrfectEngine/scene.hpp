@@ -26,13 +26,13 @@ namespace PurrfectEngine {
     purrObject *newObject();
     purrObject *newChildObject(purrObject *parent);
   public:
-    std::vector<purrObject*> getObjects() const { return mObjects; }
+    std::vector<purrObject*> getObjectsFlat() const { return mObjects; }
+    // Get only root objects.
+    std::vector<purrObject*> getObjects() const;
   private:
     PUID mUuid{};
     std::vector<PUID> mUuids{};
     std::vector<purrObject*> mObjects{};
-    std::vector<PUID> mChildrenUuids{};
-    std::vector<purrObject*> mChildrenObjects{};
     purrObject *mCameraObject = nullptr;
     purrObject *mAudioListenerObject = nullptr;
   };

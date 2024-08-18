@@ -33,9 +33,10 @@ protected:
 
     mScene = new purrScene();
     { // Initialize object
-      purrObject *obj = nullptr;
+      purrObject *root = mScene->newObject();
+      root->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
+      purrObject *obj = mScene->newChildObject(root);
       if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &obj)) return 1;
-      obj->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
       mScene->addObject(obj);
     }
 

@@ -1,5 +1,7 @@
 #include "PurrfectEngine/PurrfectEngine.hpp"
 
+#include <algorithm>
+
 namespace PurrfectEngine {
 
   purrScene::purrScene()
@@ -31,8 +33,7 @@ namespace PurrfectEngine {
 
   purrObject *purrScene::getObject(PUID uuid) {
     std::vector<PUID>::iterator it;
-    if ((it = std::find(mUuids.begin(), mUuids.end(), uuid)) == mUuids.end() &&
-        (it = std::find(mChildrenUuids.begin(), mChildrenUuids.end(), uuid)) == mChildrenUuids.end()) return nullptr;
+    if ((it = std::find(mUuids.begin(), mUuids.end(), uuid)) == mUuids.end()) return nullptr;
     return mObjects.at(it-mUuids.begin());
   }
 
@@ -59,17 +60,18 @@ namespace PurrfectEngine {
   }
 
   purrObject *purrScene::newChildObject(purrObject *parent) {
-    purrObject *obj = new purrObject(this, new purrTransform());
-    obj->mParent = parent->getUuid();
-    auto addChild = [&]() {
-      if (std::find(mChildrenUuids.begin(), mChildrenUuids.end(), obj->getUuid()) != mChildrenUuids.end())
-        return false;
-      mChildrenUuids.push_back(obj->getUuid());
-      mChildrenObjects.push_back(obj);
-      return true;
-    };
-    if (!addChild()) { delete obj; return nullptr; }
+    if (!parent) return nullptr;
+    purrObject *obj = newObject();
+    if (!obj) return nullptr;
+    parent->mChildren.push_back(obj->mUuid);
+    obj->mParent = parent->mUuid;
     return obj;
+  }
+
+  std::vector<purrObject*> purrScene::getObjects() const {
+    std::vector<purrObject*> copy = mObjects;
+    copy.erase(std::remove_if(copy.begin(), copy.end(), [](purrObject *obj){ return obj->isChild(); }), copy.end());
+    return copy;
   }
 
 }

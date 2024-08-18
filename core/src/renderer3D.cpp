@@ -83,11 +83,12 @@ namespace PurrfectEngine {
   }
 
   bool purrMesh3D::loadModel(const char *filename, purrScene *scene, purrObject **root) {
+    if (!root) return false;
     Assimp::Importer importer;
     const aiScene *paiScene = importer.ReadFile(filename, (aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices));
     if (!paiScene) return false;
 
-    *root = scene->newObject();
+    if (!*root) *root = scene->newObject();
 
     for (uint32_t i = 0; i < paiScene->mNumMeshes; ++i) {
       purrObject *obj = ((paiScene->mNumMeshes>1)?scene->newChildObject(*root):*root);
@@ -260,7 +261,7 @@ namespace PurrfectEngine {
 
     vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->getLayout(), 0, 1, &mSceneSet, 0, VK_NULL_HANDLE);
     size_t idx = 0;
-    for (purrObject *object : mScene->getObjects()) {
+    for (purrObject *object : mScene->getObjectsFlat()) {
       purrMesh3DComp *comp = nullptr;
       if (comp = (purrMesh3DComp*)object->getComponent("mesh3DComponent")) {
         glm::ivec4 data = {idx, 0, 0, 0};
