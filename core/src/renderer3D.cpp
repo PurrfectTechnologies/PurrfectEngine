@@ -90,7 +90,7 @@ namespace PurrfectEngine {
     *root = scene->newObject();
 
     for (uint32_t i = 0; i < paiScene->mNumMeshes; ++i) {
-      purrObject *obj = ((paiScene->mNumMeshes>1)?(*root)->newChild():*root);
+      purrObject *obj = ((paiScene->mNumMeshes>1)?scene->newChildObject(*root):*root);
       purrMesh3D *mesh = new purrMesh3D();
       if (!load_single_mesh(paiScene, paiScene->mMeshes[i], mesh)) { delete mesh; goto load_failed; }
       obj->addComponent(new purrMesh3DComp(mesh));

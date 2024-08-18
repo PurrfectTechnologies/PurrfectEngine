@@ -37,8 +37,9 @@ namespace PurrfectEngine {
 
   class purrScene;
   class purrCamera;
+  class purrAudioSource;
+  class purrAudioListener;
   class purrTransform;
-  class purrAudioEngine;
 
   class purrCameraComp : public purrComponent {
   public:
@@ -52,37 +53,50 @@ namespace PurrfectEngine {
     purrCamera *mCamera = nullptr;
   };
 
-  class purrAudioComp : public purrComponent {
+  class purrAudioSourceComp : public purrComponent {
   public:
-    purrAudioComp(purrAudioEngine *audioSource);
-    virtual ~purrAudioComp() override;
+    purrAudioSourceComp(purrAudioSource *source);
+    virtual ~purrAudioSourceComp() override;
 
-    virtual const char *getName() override { return "audioComponent"; }
+    virtual const char *getName() override { return "audioSourceComponent"; }
 
-    purrAudioEngine *getAudio() const { return mAudio; };
+    purrAudioSource *getSource() const { return mAudioSource; };
   private:
-    purrAudioEngine *mAudio = nullptr;
+    purrAudioSource *mAudioSource = nullptr;
+  };
+
+  class purrAudioListenerComp : public purrComponent {
+  public:
+    purrAudioListenerComp();
+    virtual ~purrAudioListenerComp() override;
+
+    virtual const char *getName() override { return "audioListenerComponent"; }
+
+    purrAudioListener *getListener() const { return mAudioListener; };
+  private:
+    purrAudioListener *mAudioListener = nullptr;
   };
 
   class purrObject {
+    friend class purrScene;
   public:
     purrObject(purrScene *scene, purrTransform *transform);
     ~purrObject();
 
     bool addComponent(purrComponent* component);
     bool addComponent(purrCameraComp* component);
+    bool addComponent(purrAudioSourceComp* component);
+    bool addComponent(purrAudioListenerComp* component);
     purrComponent *getComponent(const char *name);
     bool removeComponent(const char *name);
 
     purrTransform *getTransform() const { return mTransform; }
     // void setTransform(purrTransform *trans) { mTransform = trans; }
 
-    purrObject *newChild();
-
-    bool isChild() const { return mParent.has_value(); }
     purrObject *getParent();
-    bool isParent() const { return mChildren.size()>0; }
+    bool isChild() const { return mParent.has_value(); }
     std::vector<purrObject*> getChildren();
+    bool isParent() const { return mChildren.size()>0; }
 
     PUID getUuid() const { return mUuid; }
   private:

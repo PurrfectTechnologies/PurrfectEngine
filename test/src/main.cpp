@@ -39,21 +39,35 @@ protected:
       mScene->addObject(obj);
     }
 
-    purrObject *camObj = nullptr;
     { // Initialize camera
-      camObj = mScene->newObject();
-      if (!camObj) return false;
-      camObj->addComponent(new purrCameraComp(new purrCamera()));
-      mScene->addObject(camObj);
-      mScene->setCamera(camObj);
+      purrObject *obj = mScene->newObject();
+      if (!obj) return false;
+      obj->addComponent(new purrCameraComp(new purrCamera()));
+      mScene->addObject(obj);
+      mScene->setCamera(obj);
     }
 
-    mAudioListener = new purrAudioListener(new purrTransform());
-    mAudioSource = purrAudioEngine::getInstance()->newSource(new purrTransform());
-    // We don't have an example sound effect :p
-    // if (!purrAudioEngine::getInstance()->load("./assets/sound/sound.wav", &mAudioSource) ||
-    //     !mAudioSource->initialize()) return false;
-    mAudioSource->play();
+    { // Initialize audio listener
+      purrObject *obj = mScene->newObject();
+      if (!obj) return false;
+      obj->addComponent(new purrAudioListenerComp());
+      mScene->addObject(obj);
+      mScene->setAudioListener(obj);
+    }
+
+    { // Initialize audio source
+      purrObject *obj = mScene->newObject();
+      if (!obj) return false;
+
+      purrAudioSource *source = purrAudioEngine::getInstance()->newSource();
+      // We don't have an example sound effect :p
+      // if (!purrAudioEngine::load("./assets/sound/sound.wav", &source) ||
+      //     !source->initialize()) return false;
+      source->play();
+
+      obj->addComponent(new purrAudioSourceComp(source));
+      mScene->addObject(obj);
+    }
 
     purrRenderer3D *renderer = (purrRenderer3D*)purrRenderer::getInstance();
     renderer->setScene(mScene);
@@ -61,14 +75,11 @@ protected:
   }
 
   virtual bool update(float dt) override {
-    int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
-    int y = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
+    int x = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
+    int z = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
 
     if (mScene->getCamera() && mScene->getCamera()->getTransform()) {
-      glm::vec3 rot = glm::eulerAngles(mScene->getCamera()->getTransform()->getRotation());
-      rot.x -= y * dt;
-      rot.y -= x * dt;
-      mScene->getCamera()->getTransform()->setRotation(glm::quat(rot));
+      mScene->getCamera()->getTransform()->setPosition(mScene->getCamera()->getTransform()->getPosition() + (glm::vec3((float)x, 0.0f, (float)z * dt)));
     }
 
     return true;

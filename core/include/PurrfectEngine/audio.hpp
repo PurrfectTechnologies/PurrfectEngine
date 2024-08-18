@@ -84,12 +84,12 @@ namespace PurrfectEngine {
     bool initialize();
     void cleanup();
 
-    bool load(const char *filename, purrAudioSource **source);
+    static bool load(const char *filename, purrAudioSource **source);
 
     void update();
 
     void setListener(purrAudioListener *listener);
-    purrAudioSource *newSource(purrTransform *transform);
+    purrAudioSource *newSource(purrTransform *transform = nullptr);
     bool deleteSource(purrAudioSource *source);
   public:
     inline static purrAudioEngine* getInstance() { return sInstance; }

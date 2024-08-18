@@ -17,31 +17,6 @@ namespace PurrfectEngine {
   purrComponent::purrComponent()
   {}
 
-  // purrMeshComp::purrMeshComp(purrMesh *mesh):
-  //   mMesh(mesh)
-  // { assert(mesh); }
-
-  // // purrMeshComp::purrMeshComp(purrMesh2D *mesh):
-  // //   mMesh2D(mesh)
-  // // {}
-
-  // purrMeshComp::purrMeshComp(bool is2D, const char *filename)
-  // {
-  //   assert(!is2D && "2D not supported yet!");
-  //   // if (is2D) {
-  //   //   mMesh2D = new purrMesh2D();
-  //   //   mMesh2D->initialize(filename);
-  //   // } else {
-  //     mMesh = new purrMesh();
-  //     mMesh->initialize(filename);
-  //   // }
-  // }
-
-  // purrMeshComp::~purrMeshComp() {
-  //   if (mMesh) delete mMesh;
-  //   // if (mMesh2D) delete mMesh2D;
-  // }
-
   // purrLightComp::purrLightComp(purrLight *light):
   //   mLight(light)
   // { assert(light); }
@@ -58,14 +33,20 @@ namespace PurrfectEngine {
     delete mCamera;
   }
 
-  purrAudioComp::purrAudioComp(purrAudioEngine *audioSource):
-    mAudio(audioSource)
-  { assert(audioSource); }
+  purrAudioSourceComp::purrAudioSourceComp(purrAudioSource *source):
+    mAudioSource(source)
+  {}
 
-  purrAudioComp::~purrAudioComp() {
-    if (mAudio) {
-      delete mAudio;
-    }
+  purrAudioSourceComp::~purrAudioSourceComp() {
+    
+  }
+
+  purrAudioListenerComp::purrAudioListenerComp():
+    mAudioListener(new purrAudioListener(nullptr))
+  {}
+
+  purrAudioListenerComp::~purrAudioListenerComp() {
+    
   }
 
   purrObject::purrObject(purrScene *scene, purrTransform *transform):
@@ -91,6 +72,18 @@ namespace PurrfectEngine {
     return addComponent((purrComponent*)component);
   }
 
+  bool purrObject::addComponent(purrAudioSourceComp* component) {
+    assert(mTransform && "`mTransform` is a need, and I need to `mTransform`!");
+    component->getSource()->setTransform(mTransform);
+    return addComponent((purrComponent*)component);
+  }
+
+  bool purrObject::addComponent(purrAudioListenerComp* component) {
+    assert(mTransform && "`mTransform` is a need, and I need to `mTransform`!");
+    component->getListener()->setTransform(mTransform);
+    return addComponent((purrComponent*)component);
+  }
+
   purrComponent *purrObject::getComponent(const char *name) {
     auto it = std::find_if(mCompNames.begin(), mCompNames.end(), [&](const char* str) {
       return strcmp(str, name) == 0;
@@ -105,17 +98,6 @@ namespace PurrfectEngine {
     mCompNames.erase(it);
     mComponents.erase(mComponents.begin()+(it-mCompNames.begin()));
     return true;
-  }
-
-  purrObject *purrObject::newChild() {
-    purrObject *child = new purrObject(mScene, new purrTransform());
-    if (!mScene->addChild(child)) {
-      delete child;
-      return nullptr;
-    }
-    mChildren.push_back(child->mUuid);
-    child->mParent = mUuid;
-    return child;
   }
 
   purrObject *purrObject::getParent() {

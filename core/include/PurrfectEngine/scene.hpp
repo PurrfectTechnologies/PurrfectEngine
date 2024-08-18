@@ -9,7 +9,7 @@ namespace PurrfectEngine {
     friend class purrObject;
   public:
     purrScene();
-    purrScene(PUID uuid, std::vector<purrObject*> objects, purrObject *cameraObject);
+    purrScene(PUID uuid, std::vector<purrObject*> objects, purrObject *cameraObject, purrObject *audioListenerObject);
     ~purrScene();
 
     bool addObject(purrObject *obj);
@@ -20,11 +20,13 @@ namespace PurrfectEngine {
     void setCamera(purrObject *object) { mCameraObject = object; }
     purrObject *getCamera() const { return mCameraObject; }
 
+    bool setAudioListener(purrObject *object);
+    purrObject *getAudioListener() const { return mAudioListenerObject; }
+
     purrObject *newObject();
+    purrObject *newChildObject(purrObject *parent);
   public:
     std::vector<purrObject*> getObjects() const { return mObjects; }
-  private:
-    bool addChild(purrObject *obj);
   private:
     PUID mUuid{};
     std::vector<PUID> mUuids{};
@@ -32,6 +34,7 @@ namespace PurrfectEngine {
     std::vector<PUID> mChildrenUuids{};
     std::vector<purrObject*> mChildrenObjects{};
     purrObject *mCameraObject = nullptr;
+    purrObject *mAudioListenerObject = nullptr;
   };
 
 }

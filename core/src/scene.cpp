@@ -5,8 +5,8 @@ namespace PurrfectEngine {
   purrScene::purrScene()
   {}
 
-  purrScene::purrScene(PUID uuid, std::vector<purrObject*> objects, purrObject *cameraObject):
-    mUuid(uuid), mCameraObject(cameraObject)
+  purrScene::purrScene(PUID uuid, std::vector<purrObject*> objects, purrObject *cameraObject, purrObject *audioListenerObject):
+    mUuid(uuid), mCameraObject(cameraObject), mAudioListenerObject(audioListenerObject)
   { addObjects(objects); }
 
   purrScene::~purrScene() {
@@ -31,7 +31,8 @@ namespace PurrfectEngine {
 
   purrObject *purrScene::getObject(PUID uuid) {
     std::vector<PUID>::iterator it;
-    if ((it = std::find(mUuids.begin(), mUuids.end(), uuid)) == mUuids.end()) return nullptr;
+    if ((it = std::find(mUuids.begin(), mUuids.end(), uuid)) == mUuids.end() &&
+        (it = std::find(mChildrenUuids.begin(), mChildrenUuids.end(), uuid)) == mChildrenUuids.end()) return nullptr;
     return mObjects.at(it-mUuids.begin());
   }
 
@@ -43,6 +44,12 @@ namespace PurrfectEngine {
     return true;
   }
 
+  bool purrScene::setAudioListener(purrObject *object) {
+    if (!purrAudioEngine::getInstance()) return false;
+    purrAudioEngine::getInstance()->setListener(((purrAudioListenerComp*)((mAudioListenerObject = object)->getComponent("audioListenerComponent")))->getListener());
+    return true;
+  }
+
   purrObject *purrScene::newObject() {
     purrObject *obj = new purrObject(this, new purrTransform());
     if (!addObject(obj)) {
@@ -51,12 +58,18 @@ namespace PurrfectEngine {
     return obj;
   }
 
-  bool purrScene::addChild(purrObject *obj) {
-    if (std::find(mChildrenUuids.begin(), mChildrenUuids.end(), obj->getUuid()) != mChildrenUuids.end())
-      return false;
-    mChildrenUuids.push_back(obj->getUuid());
-    mChildrenObjects.push_back(obj);
-    return true;
+  purrObject *purrScene::newChildObject(purrObject *parent) {
+    purrObject *obj = new purrObject(this, new purrTransform());
+    obj->mParent = parent->getUuid();
+    auto addChild = [&]() {
+      if (std::find(mChildrenUuids.begin(), mChildrenUuids.end(), obj->getUuid()) != mChildrenUuids.end())
+        return false;
+      mChildrenUuids.push_back(obj->getUuid());
+      mChildrenObjects.push_back(obj);
+      return true;
+    };
+    if (!addChild()) { delete obj; return nullptr; }
+    return obj;
   }
 
 }

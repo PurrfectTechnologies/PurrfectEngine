@@ -159,6 +159,7 @@ namespace PurrfectEngine {
   }
 
   bool purrAudioEngine::load(const char *filename, purrAudioSource **source) {
+    assert(sInstance && sInstance->mContext);
     if (!source || !(*source)) return false;
 
     const char *ext = NULL;
