@@ -126,7 +126,7 @@ namespace PurrfectEngine {
     purrCamera *camera = nullptr;
     if (cameraObject && (cameraComp = (purrCameraComp*)cameraObject->getComponent("cameraComponent")) && (camera = cameraComp->getCamera())) if (!updateCamera(camera)) return false;
 
-    std::vector<purrObject3D> objects = updateObjects(mScene->getObjects());
+    std::vector<purrObject3D> objects = updateObjects(mScene->getObjects(), glm::mat4(1.0f));
     if (!updateObjects(objects)) return false;
 
     std::vector<purrLight> lights = { { {0.0f,0.0f,4.0f,1.0f}, {1.0f,0.0f,0.0f,1.0f} } };
@@ -313,12 +313,13 @@ namespace PurrfectEngine {
     return mRenderTarget;
   }
 
-  std::vector<purrObject3D> purrRenderer3D::updateObjects(std::vector<purrObject*> objects) {
+  std::vector<purrObject3D> purrRenderer3D::updateObjects(std::vector<purrObject*> objects, glm::mat4 parentTransform) {
     std::vector<purrObject3D> vec = {};
     for (purrObject *obj: objects) {
-      vec.push_back(purrObject3D{obj->getTransform()->getTransform()});
+      glm::mat4 transform = obj->getTransform()->getTransform() * parentTransform;
+      vec.push_back(purrObject3D{transform});
       if (obj->isParent()) {
-        std::vector<purrObject3D> vec2 = updateObjects(obj->getChildren());
+        std::vector<purrObject3D> vec2 = updateObjects(obj->getChildren(), transform);
         vec.insert(vec.end(), vec2.begin(), vec2.end());
       }
     }

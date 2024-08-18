@@ -90,7 +90,7 @@ namespace PurrfectEngine {
     virtual VkSampleCountFlagBits getSampleCount() override;
     virtual purrRenderTarget *getRenderTarget()    override;
   private:
-    std::vector<purrObject3D> updateObjects(std::vector<purrObject*> objects);
+    std::vector<purrObject3D> updateObjects(std::vector<purrObject*> objects, glm::mat4 parentTransform);
   private:
     bool updateCamera(purrCamera *camera);
     bool updateObjects(std::vector<purrObject3D> objects);
