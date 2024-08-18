@@ -3,7 +3,18 @@
 PurrfectEngine is a game/application engine made in C++ designed for beginners and experts. It is developed by 2 humans ([CatDev](https://github.com/RealCatDev) and [1mag1n33](https://github.com/1mag1n33)).
 
 > [!NOTE]
-> PurrfectEngine is still in development.
+> PurrfectEngine is still under development, things may and probably will change.
+
+## Usage
+
+> [!NOTE]
+> This is how we imagine PurrfectEngine to look like at it's release, things might not look like that at the moment you're reading this.
+
+Unlike cigarettes, PurrfectEngine is designed to be good for anyone, whether you are a beginner, intermediate or an expert.
+
+- Expert: Ultimately, PurrfectEngine is just a C++ API like [raylib](https://github.com/raysan5/raylib) that has capabilities of creating a window, rendering geometry, playing audio, etc.
+- Beginner: But above this API (will) lie an editor that will make work easier for those not experienced with PurrfectEngine. But worry not! When PurrfectEngine will have a full release, you should be able to build an editor for your game that uses PurrfectEngine, exciting! Right?
+- Intermediate: Lastly, there's an intermediate. We're creating a programming language for (but not limited only to) PurrfectEngine. It will be built into PurrfectEngine and used in it's editor.
 
 ## Building
 
