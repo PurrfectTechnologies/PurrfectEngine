@@ -44,7 +44,7 @@ namespace PurrfectEngine {
   };
 
   struct purrRendererSwapchainInfo {
-    bool VSync = true;
+    bool VSync = false;
   };
 
   struct purrRendererInitInfo {

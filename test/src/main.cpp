@@ -35,9 +35,12 @@ protected:
     { // Initialize object
       purrObject *root = mScene->newObject();
       root->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
-      purrObject *obj = mScene->newChildObject(root);
-      if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &obj)) return 1;
-      mScene->addObject(obj);
+      purrObject *meshObj = mScene->newChildObject(root);
+      if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &meshObj)) return 1;
+      mScene->addObject(meshObj);
+      purrObject *lightObj = mScene->newChildObject(root);
+      lightObj->addComponent(new purrLightComp(glm::vec4(1.0f, 0.0f, 0.0f, 0.0f)));
+      lightObj->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
     }
 
     { // Initialize camera

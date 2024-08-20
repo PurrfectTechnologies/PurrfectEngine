@@ -130,7 +130,7 @@ namespace PurrfectEngine {
     std::vector<purrObject3D> objects = updateObjects(mScene->getObjects(), glm::mat4(1.0f));
     if (!updateObjects(objects)) return false;
 
-    std::vector<purrLight> lights = { { {0.0f,0.0f,4.0f,1.0f}, {1.0f,0.0f,0.0f,1.0f} } };
+    std::vector<purrLight> lights = updateLights(mScene->getObjects(), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
     if (!updateLights(lights)) return false;
 
     return true;
@@ -321,6 +321,24 @@ namespace PurrfectEngine {
       vec.push_back(purrObject3D{transform});
       if (obj->isParent()) {
         std::vector<purrObject3D> vec2 = updateObjects(obj->getChildren(), transform);
+        vec.insert(vec.end(), vec2.begin(), vec2.end());
+      }
+    }
+    return vec;
+  }
+
+  std::vector<purrLight> purrRenderer3D::updateLights(std::vector<purrObject*> objects, glm::vec4 parentPosition) {
+    std::vector<purrLight> vec = {};
+    for (purrObject *obj: objects) {
+      purrLightComp *comp = nullptr;
+      glm::vec4 newPos = glm::vec4(glm::vec3(parentPosition) + obj->getTransform()->getPosition(), 1.0f);
+      if ((comp = (purrLightComp*)obj->getComponent("lightComponent"))) {
+        purrLight light = *comp->getLight();
+        light.position = newPos;
+        vec.push_back(light);
+      }
+      if (obj->isParent()) {
+        std::vector<purrLight> vec2 = updateLights(obj->getChildren(), newPos);
         vec.insert(vec.end(), vec2.begin(), vec2.end());
       }
     }

@@ -39,6 +39,7 @@ namespace PurrfectEngine {
   class purrCamera;
   class purrAudioSource;
   class purrAudioListener;
+  struct purrLight;
   class purrTransform;
 
   class purrCameraComp : public purrComponent {
@@ -77,6 +78,22 @@ namespace PurrfectEngine {
     purrAudioListener *mAudioListener = nullptr;
   };
 
+  class purrLightComp : public purrComponent {
+    friend class purrObject;
+  public:
+    purrLightComp(glm::vec4 color);
+    virtual ~purrLightComp() override;
+
+    virtual const char *getName() override { return "lightComponent"; }
+
+    const purrLight *getLight() const { return (const purrLight*)mLight; };
+    void setColor(glm::vec4 color);
+  private:
+    void setPosition(glm::vec4 position);
+  private:
+    purrLight *mLight;
+  };
+
   class purrObject {
     friend class purrScene;
   public:
@@ -87,6 +104,7 @@ namespace PurrfectEngine {
     bool addComponent(purrCameraComp* component);
     bool addComponent(purrAudioSourceComp* component);
     bool addComponent(purrAudioListenerComp* component);
+    bool addComponent(purrLightComp* component);
     purrComponent *getComponent(const char *name);
     bool removeComponent(const char *name);
 

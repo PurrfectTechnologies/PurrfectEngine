@@ -17,14 +17,6 @@ namespace PurrfectEngine {
   purrComponent::purrComponent()
   {}
 
-  // purrLightComp::purrLightComp(purrLight *light):
-  //   mLight(light)
-  // { assert(light); }
-
-  // purrLightComp::~purrLightComp() {
-  //   delete mLight;
-  // }
-
   purrCameraComp::purrCameraComp(purrCamera *camera):
     mCamera(camera)
   { assert(camera); }
@@ -38,7 +30,7 @@ namespace PurrfectEngine {
   {}
 
   purrAudioSourceComp::~purrAudioSourceComp() {
-    
+
   }
 
   purrAudioListenerComp::purrAudioListenerComp():
@@ -46,8 +38,19 @@ namespace PurrfectEngine {
   {}
 
   purrAudioListenerComp::~purrAudioListenerComp() {
-    
+
   }
+
+  purrLightComp::purrLightComp(glm::vec4 color):
+    mLight(new purrLight({glm::vec4(1.0f),color}))
+  {}
+
+  purrLightComp::~purrLightComp() {
+    delete mLight;
+  }
+
+  void purrLightComp::setColor(glm::vec4 color)       { mLight->color = color; }
+  void purrLightComp::setPosition(glm::vec4 position) { mLight->position = position; }
 
   purrObject::purrObject(purrScene *scene, purrTransform *transform):
     mScene(scene), mTransform(transform)
@@ -81,6 +84,12 @@ namespace PurrfectEngine {
   bool purrObject::addComponent(purrAudioListenerComp* component) {
     assert(mTransform && "`mTransform` is a need, and I need to `mTransform`!");
     component->getListener()->setTransform(mTransform);
+    return addComponent((purrComponent*)component);
+  }
+
+  bool purrObject::addComponent(purrLightComp* component) {
+    assert(mTransform && "`mTransform` is a need, and I need to `mTransform`!");
+    component->setPosition(glm::vec4(mTransform->getPosition(), 1.0f));
     return addComponent((purrComponent*)component);
   }
 
