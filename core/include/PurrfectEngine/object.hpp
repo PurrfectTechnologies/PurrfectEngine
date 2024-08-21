@@ -20,6 +20,8 @@ namespace PurrfectEngine {
   class purrObject {
     friend class purrScene;
   public:
+    purrObject(purrScene *scene, entt::entity entity);
+
     template <typename T, typename... Args>
     T &addComponent(Args &&...args) {
       return mScene->mRegistry.emplace<T>(mHandle, std::forward<Args>(args)...);
@@ -44,7 +46,7 @@ namespace PurrfectEngine {
 
     PUID getUuid() const { return mUuid; }
   private:
-    purrObject(purrScene *scene, entt::entity entity);
+    
   private:
     purrScene *mScene;
     entt::entity mHandle;

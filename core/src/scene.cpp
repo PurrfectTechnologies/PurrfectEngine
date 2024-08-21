@@ -7,14 +7,15 @@ namespace PurrfectEngine {
   purrScene::purrScene()
   {}
 
-  purrScene::purrScene(PUID uuid):
-    mUuid(uuid)
+  purrScene::purrScene(PUID cameraUuid):
+    mCameraUuid(cameraUuid)
   {}
 
   purrObject purrScene::newObject() {
     entt::entity entity = mRegistry.create();
-    mEntityMap.insert(obj.getUuid(), entity);
-    return purrObject{this, entity};
+    purrObject obj{this, entity}; 
+    mEntityMap.insert({obj.getUuid(), entity});
+    return obj;
   }
 
   std::optional<purrObject> purrScene::getObject(PUID uuid) {
@@ -22,10 +23,21 @@ namespace PurrfectEngine {
       return {};
     return {purrObject{this, mEntityMap[uuid]}};
   }
+
+  std::vector<purrObject> purrScene::getObjectsFlat() const {
+    std::vector<purrObject> objects;
+    for (const auto& [uuid, entity] : mEntityMap) {
+      objects.push_back(purrObject{const_cast<purrScene*>(this), entity});
+    }
+    return objects;
+  }
+
+
+
   
   void purrScene::removeObject(PUID uuid) {
     if (auto it = mEntityMap.find(uuid); it != mEntityMap.end()) {
-      mRegistry.remove(it->second);
+      mRegistry.destroy(it->second);
       mEntityMap.erase(it);
     }
   }

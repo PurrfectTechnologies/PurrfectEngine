@@ -8,10 +8,11 @@ namespace PurrfectEngine {
     friend class purrObject;
   public:
     purrScene();
-    purrScene(PUID uuid, PUID cameraUuid);
+    purrScene(PUID cameraUuid);
 
     purrObject newObject();
     std::optional<purrObject> getObject(PUID uuid);
+    std::vector<purrObject> getObjectsFlat() const;
     void removeObject(PUID uuid);
 
     std::optional<purrObject> getCamera();
