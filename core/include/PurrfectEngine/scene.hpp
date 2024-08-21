@@ -15,6 +15,7 @@ namespace PurrfectEngine {
     std::vector<purrObject> getObjectsFlat() const;
     void removeObject(PUID uuid);
 
+    void setCamera(PUID uuid) { mCameraUuid = uuid; }
     std::optional<purrObject> getCamera();
   public:
     operator entt::registry&() { return mRegistry; }

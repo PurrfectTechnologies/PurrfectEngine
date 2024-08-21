@@ -31,9 +31,6 @@ namespace PurrfectEngine {
     }
     return objects;
   }
-
-
-
   
   void purrScene::removeObject(PUID uuid) {
     if (auto it = mEntityMap.find(uuid); it != mEntityMap.end()) {

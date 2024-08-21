@@ -34,37 +34,20 @@ protected:
 
     mScene = new purrScene();
 
-    purrObject root = mScene->newObject();
-    root.getTransform()->setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
+    purrObject player = mScene->newObject();
+    player.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
+    mPlayer = player.getUuid();
 
-    purrObject meshObj = mScene->newChildObject(&root);
+    purrObject meshObj = player.createChild();
     if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &meshObj)) return 1;
-    mScene->addObject(meshObj);
 
-    purrObject lightObj = mScene->newChildObject(&root);
-    lightObj.addComponent(new purrLightComp(glm::vec4(1.0f, 0.0f, 0.0f, 0.0f)));
-    lightObj.getTransform()->setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
+    purrObject lightObj = player.createChild();
+    lightObj.addComponent<purrLightComponent>(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    lightObj.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
 
     purrObject obj = mScene->newObject();
-    if (!obj) return false;
-    obj.addComponent(new purrCameraComp(new purrCamera()));
-    mScene->addObject(obj);
-    mScene->setCamera(obj);
-
-    obj = mScene->newObject();
-    if (!obj) return false;
-    obj.addComponent(new purrAudioListenerComp());
-    mScene->addObject(obj);
-    mScene->setAudioListener(obj);
-
-    obj = mScene->newObject();
-    if (!obj) return false;
-
-    purrAudioSource* source = purrAudioEngine::getInstance()->newSource();
-    source->play();
-
-    obj.addComponent(new purrAudioSourceComp(source));
-    mScene->addObject(obj);
+    obj.addComponent<purrCameraComponent>(purrCamera());
+    mScene->setCamera(obj.getUuid());
 
     purrRenderer3D* renderer = (purrRenderer3D*)purrRenderer::getInstance();
     renderer->setScene(mScene);
@@ -72,11 +55,16 @@ protected:
   }
 
   virtual bool update(float dt) override {
+    auto player_opt = mScene->getObject(mPlayer);
+    if (!player_opt.has_value()) return true;
+    purrObject player = player_opt.value();
+
     int x = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
     int z = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
 
-    if (mScene->getCamera() && mScene->getCamera().getTransform()) {
-      mScene->getCamera()->getTransform()->setPosition(mScene->getCamera()->getTransform()->getPosition() + glm::vec3((float)x, 0.0f, (float)z * dt));
+    if (player.hasComponent<purrTransform>()) {
+      purrTransform &transform = player.getComponent<purrTransform>();
+      transform.setPosition(transform.getPosition() + (glm::vec3((float)x, 0.0f, (float)z) * dt));
     }
 
     return true;
@@ -84,13 +72,11 @@ protected:
 
   virtual void cleanup() override {
     delete mScene;
-    delete mAudioListener;
   }
 
 private:
   purrScene* mScene = nullptr;
-  purrAudioListener* mAudioListener = nullptr;
-  purrAudioSource* mAudioSource = nullptr;
+  PUID mPlayer;
 };
 
 purrApp* PurrfectEngine::CreateApp() {

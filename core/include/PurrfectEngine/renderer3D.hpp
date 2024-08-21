@@ -47,6 +47,10 @@ namespace PurrfectEngine {
     purrBuffer *mIBuffer = nullptr;
   };
 
+  struct purrMesh3DComponent {
+    purrMesh3D mesh;
+  };
+
   struct purrObject3D {
     glm::mat4 model;
   };
@@ -56,8 +60,8 @@ namespace PurrfectEngine {
     glm::vec4 color;
   };
 
-  struct purrMesh3DComponent {
-    purrMesh3D mesh;
+  struct purrLightComponent {
+    glm::vec4 color;
   };
 
   class purrRenderer3D: public purrRenderer {
