@@ -40,23 +40,11 @@ namespace PurrfectEngine {
     bool copy(std::vector<purrVertex3D> &vertices,
               std::vector<uint32_t>     &indices);
 
-    static bool loadModel(const char *filename, purrScene *scene, purrObject **root);
+    static bool loadModel(const char *filename, purrScene *scene, purrObject *root);
   private:
     uint32_t mIndexCount = 0;
     purrBuffer *mVBuffer = nullptr;
     purrBuffer *mIBuffer = nullptr;
-  };
-
-  class purrMesh3DComp : public purrComponent {
-  public:
-    purrMesh3DComp(purrMesh3D *mesh);
-    virtual ~purrMesh3DComp() override;
-
-    virtual const char *getName() override { return "mesh3DComponent"; }
-
-    purrMesh3D *getMesh() const { return mMesh; };
-  private:
-    purrMesh3D *mMesh = nullptr;
   };
 
   struct purrObject3D {
@@ -66,6 +54,10 @@ namespace PurrfectEngine {
   struct purrLight {
     glm::vec4 position;
     glm::vec4 color;
+  };
+
+  struct purrMesh3DComponent {
+    purrMesh3D mesh;
   };
 
   class purrRenderer3D: public purrRenderer {
@@ -90,11 +82,9 @@ namespace PurrfectEngine {
     virtual VkSampleCountFlagBits getSampleCount() override;
     virtual purrRenderTarget *getRenderTarget()    override;
   private:
-    std::vector<purrObject3D> updateObjects(std::vector<purrObject*> objects, glm::mat4 parentTransform);
-    std::vector<purrLight> updateLights(std::vector<purrObject*> objects, glm::vec4 parentPosition);
+    std::vector<purrLight> updateLights(purrObject obj, entt::registry &registry, glm::vec4 parentPosition);
   private:
-    bool updateCamera(purrCamera *camera);
-    bool updateObjects(std::vector<purrObject3D> objects);
+    bool updateCamera(purrCamera camera);
     bool updateLights(std::vector<purrLight> lights);
   private:
     VkDescriptorSetLayout mSceneLayout    = VK_NULL_HANDLE; // Layout for objectBuffer and camera UBO.
@@ -102,7 +92,6 @@ namespace PurrfectEngine {
     VkDescriptorSet       mSceneSet       = VK_NULL_HANDLE;
 
     purrBuffer *mCameraBuffer = nullptr;
-    purrBuffer *mObjectsBuffer = nullptr;
     purrBuffer *mLightBuffer = nullptr;
   private:
     purrScene        *mScene = nullptr;

@@ -28,6 +28,10 @@ namespace PurrfectEngine {
     purrTransform *mTransform = nullptr;
   };
 
+  struct purrCameraComponent {
+    purrCamera camera;
+  };
+
 }
 
 #endif // PURRENGINE_CAMERA_HPP_

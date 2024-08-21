@@ -12,6 +12,8 @@
 #include <optional>
 #include <unordered_map>
 
+#include <entt/entt.hpp>
+
 #include "PurrfectEngine/extensions.hpp"
 
 #include "PurrfectEngine/transform.hpp"
@@ -19,8 +21,8 @@
 #include "PurrfectEngine/audio.hpp"
 
 #include "PurrfectEngine/PUID.hpp"
-#include "PurrfectEngine/object.hpp"
 #include "PurrfectEngine/scene.hpp"
+#include "PurrfectEngine/object.hpp"
 
 namespace PurrfectEngine {
 

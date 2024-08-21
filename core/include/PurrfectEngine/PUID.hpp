@@ -12,7 +12,11 @@ namespace PurrfectEngine {
       return mId == other.mId;
     }
 
-    uint32_t operator()() {
+    bool operator!=(const PUID &other) const {
+      return !(*this == other);
+    }
+
+    operator const uint32_t &() const {
       return mId;
     }
 

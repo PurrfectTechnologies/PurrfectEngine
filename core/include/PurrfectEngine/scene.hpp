@@ -2,36 +2,25 @@
 #define   PURRENGINE_SCENE_HPP_
 
 namespace PurrfectEngine {
+
+  class purrObject;
   class purrScene {
     friend class purrObject;
   public:
     purrScene();
-    purrScene(PUID uuid, std::vector<purrObject*> objects, purrObject *cameraObject, purrObject *audioListenerObject);
-    ~purrScene();
+    purrScene(PUID uuid, PUID cameraUuid);
 
-    bool addObject(purrObject *obj);
-    bool addObjects(std::vector<purrObject*> objects);
-    purrObject *getObject(PUID uuid);
-    bool removeObject(PUID uuid);
+    purrObject newObject();
+    std::optional<purrObject> getObject(PUID uuid);
+    void removeObject(PUID uuid);
 
-    void setCamera(purrObject *object) { mCameraObject = object; }
-    purrObject *getCamera() const { return mCameraObject; }
-
-    bool setAudioListener(purrObject *object);
-    purrObject *getAudioListener() const { return mAudioListenerObject; }
-
-    purrObject *newObject();
-    purrObject *newChildObject(purrObject *parent);
+    std::optional<purrObject> getCamera();
   public:
-    std::vector<purrObject*> getObjectsFlat() const { return mObjects; }
-    // Get only root objects.
-    std::vector<purrObject*> getObjects() const;
+    operator entt::registry&() { return mRegistry; }
   private:
-    PUID mUuid{};
-    std::vector<PUID> mUuids{};
-    std::vector<purrObject*> mObjects{};
-    purrObject *mCameraObject = nullptr;
-    purrObject *mAudioListenerObject = nullptr;
+    PUID mCameraUuid;
+    std::unordered_map<PUID, entt::entity> mEntityMap{};
+    entt::registry mRegistry;
   };
 
 }

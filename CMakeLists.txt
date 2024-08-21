@@ -35,6 +35,8 @@ set(BUILD_PROGRAMS OFF)
 set(BUILD_EXAMPLES OFF)
 add_subdirectory(dependencies/libsndfile)
 
+add_subdirectory(dependencies/entt)
+
 include_directories(dependencies/stb/)
 include_directories(dependencies/minimp3/)
 add_subdirectory(core)

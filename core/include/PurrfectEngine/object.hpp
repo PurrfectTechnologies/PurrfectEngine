@@ -5,106 +5,50 @@
 
 namespace PurrfectEngine {
 
-  class purrComponent {
-  public:
-    purrComponent();
-    virtual ~purrComponent() = default;
+  // Component for child objects.
+  struct ParentComponent {
+    entt::entity parent = entt::null;
+  };
 
-    virtual const char *getName() = 0;
-  private:
+  // Component for objects with children.
+  struct ChildrenComponent {
+    std::vector<entt::entity> children;
   };
 
   class purrScene;
-  class purrCamera;
-  class purrAudioSource;
-  class purrAudioListener;
-  struct purrLight;
-  class purrTransform;
-
-  class purrCameraComp : public purrComponent {
-  public:
-    purrCameraComp(purrCamera *camera);
-    virtual ~purrCameraComp() override;
-
-    virtual const char *getName() override { return "cameraComponent"; }
-
-    purrCamera *getCamera() const { return mCamera; }
-  private:
-    purrCamera *mCamera = nullptr;
-  };
-
-  class purrAudioSourceComp : public purrComponent {
-  public:
-    purrAudioSourceComp(purrAudioSource *source);
-    virtual ~purrAudioSourceComp() override;
-
-    virtual const char *getName() override { return "audioSourceComponent"; }
-
-    purrAudioSource *getSource() const { return mAudioSource; };
-  private:
-    purrAudioSource *mAudioSource = nullptr;
-  };
-
-  class purrAudioListenerComp : public purrComponent {
-  public:
-    purrAudioListenerComp();
-    virtual ~purrAudioListenerComp() override;
-
-    virtual const char *getName() override { return "audioListenerComponent"; }
-
-    purrAudioListener *getListener() const { return mAudioListener; };
-  private:
-    purrAudioListener *mAudioListener = nullptr;
-  };
-
-  class purrLightComp : public purrComponent {
-    friend class purrObject;
-  public:
-    purrLightComp(glm::vec4 color);
-    virtual ~purrLightComp() override;
-
-    virtual const char *getName() override { return "lightComponent"; }
-
-    const purrLight *getLight() const { return (const purrLight*)mLight; };
-    void setColor(glm::vec4 color);
-  private:
-    void setPosition(glm::vec4 position);
-  private:
-    purrLight *mLight;
-  };
 
   class purrObject {
     friend class purrScene;
   public:
-    purrObject(purrScene *scene, purrTransform *transform);
-    ~purrObject();
+    template <typename T, typename... Args>
+    T &addComponent(Args &&...args) {
+      return mScene->mRegistry.emplace<T>(mHandle, std::forward<Args>(args)...);
+    }
 
-    bool addComponent(purrComponent* component);
-    bool addComponent(purrCameraComp* component);
-    bool addComponent(purrAudioSourceComp* component);
-    bool addComponent(purrAudioListenerComp* component);
-    bool addComponent(purrLightComp* component);
-    purrComponent *getComponent(const char *name);
-    bool removeComponent(const char *name);
+    template <typename T>
+    T &getComponent() {
+      return mScene->mRegistry.get<T>(mHandle);
+    }
 
-    purrTransform *getTransform() const { return mTransform; }
-    // void setTransform(purrTransform *trans) { mTransform = trans; }
+    template <typename T>
+    bool hasComponent() {
+      return mScene->mRegistry.any_of<T>(mHandle);
+    }
 
-    purrObject *getParent();
-    bool isChild() const { return mParent.has_value(); }
-    std::vector<purrObject*> getChildren();
-    bool isParent() const { return mChildren.size()>0; }
+    template <typename T>
+    void removeComponent() {
+      mScene->mRegistry.remove<T>(mHandle);
+    }
+
+    purrObject createChild();
 
     PUID getUuid() const { return mUuid; }
   private:
-    purrScene *mScene = nullptr;
+    purrObject(purrScene *scene, entt::entity entity);
+  private:
+    purrScene *mScene;
+    entt::entity mHandle;
     PUID mUuid{};
-    purrTransform *mTransform = nullptr;
-
-    std::optional<PUID> mParent{};
-    std::vector<PUID> mChildren{};
-    std::vector<const char *> mCompNames{};
-    std::vector<purrComponent*> mComponents{};
   };
 
 }
