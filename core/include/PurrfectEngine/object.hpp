@@ -1,30 +1,9 @@
 #ifndef   PURRENGINE_OBJECT_HPP_
 #define   PURRENGINE_OBJECT_HPP_
 
-#include <vector>
-#include <algorithm>
-#include <optional>
-#include <unordered_map>
-
 #include <stdint.h>
 
 namespace PurrfectEngine {
-
-  struct PUID {
-  public:
-    PUID();
-    constexpr PUID(uint32_t id) : mId(id) {}
-
-    friend bool operator==(PUID dis, PUID other) {
-      return dis.mId == other.mId;
-    }
-
-    uint32_t operator()() {
-      return mId;
-    }
-  private:
-    uint32_t mId = 0;
-  };
 
   class purrComponent {
   public:

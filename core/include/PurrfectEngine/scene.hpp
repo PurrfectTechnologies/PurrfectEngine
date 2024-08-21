@@ -1,9 +1,6 @@
 #ifndef   PURRENGINE_SCENE_HPP_
 #define   PURRENGINE_SCENE_HPP_
 
-#include <vector>
-#include "PurrfectEngine/object.hpp"
-
 namespace PurrfectEngine {
   class purrScene {
     friend class purrObject;
