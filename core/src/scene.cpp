@@ -11,9 +11,14 @@ namespace PurrfectEngine {
     mCameraUuid(cameraUuid)
   {}
 
+  purrScene::~purrScene() {
+    mRegistry.clear();
+  }
+
   purrObject purrScene::newObject() {
     entt::entity entity = mRegistry.create();
     purrObject obj{this, entity}; 
+    obj.addComponent<purrTransform>();
     mEntityMap.insert({obj.getUuid(), entity});
     return obj;
   }
@@ -22,14 +27,6 @@ namespace PurrfectEngine {
     if (mEntityMap.find(uuid) == mEntityMap.end())
       return {};
     return {purrObject{this, mEntityMap[uuid]}};
-  }
-
-  std::vector<purrObject> purrScene::getObjectsFlat() const {
-    std::vector<purrObject> objects;
-    for (const auto& [uuid, entity] : mEntityMap) {
-      objects.push_back(purrObject{const_cast<purrScene*>(this), entity});
-    }
-    return objects;
   }
   
   void purrScene::removeObject(PUID uuid) {

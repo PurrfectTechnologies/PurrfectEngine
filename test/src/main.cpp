@@ -73,7 +73,6 @@ protected:
   virtual void cleanup() override {
     delete mScene;
   }
-
 private:
   purrScene* mScene = nullptr;
   PUID mPlayer;

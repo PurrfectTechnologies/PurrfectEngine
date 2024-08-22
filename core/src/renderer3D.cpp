@@ -9,10 +9,6 @@ namespace PurrfectEngine {
   purrMesh3D::purrMesh3D()
   {}
 
-  purrMesh3D::~purrMesh3D() {
-    cleanup();
-  }
-
   bool purrMesh3D::initialize() {
     mVBuffer = new purrBuffer();
     mIBuffer = new purrBuffer();
@@ -84,15 +80,18 @@ namespace PurrfectEngine {
 
   bool purrMesh3D::loadModel(const char *filename, purrScene *scene, purrObject *root) {
     if (!root) return false;
+    purrRenderer3D* renderer3D = dynamic_cast<purrRenderer3D*>(purrRenderer::getInstance());
+    assert(renderer3D);
     Assimp::Importer importer;
     const aiScene *paiScene = importer.ReadFile(filename, (aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices));
     if (!paiScene) return false;
 
     for (uint32_t i = 0; i < paiScene->mNumMeshes; ++i) {
       purrObject obj = ((paiScene->mNumMeshes>1)?root->createChild():*root);
-      purrMesh3D mesh{};
-      if (!load_single_mesh(paiScene, paiScene->mMeshes[i], &mesh)) { goto load_failed; }
+      purrMesh3D *mesh = new purrMesh3D();
+      if (!load_single_mesh(paiScene, paiScene->mMeshes[i], mesh)) { goto load_failed; }
       obj.addComponent<purrMesh3DComponent>(mesh);
+      renderer3D->registerMesh(mesh);
     }
 
     return true;
@@ -115,14 +114,14 @@ namespace PurrfectEngine {
     entt::registry& registry = *mScene;
 
     auto cameraObject = mScene->getCamera();
-    if (cameraObject.has_value() && !updateCamera(cameraObject.value().getComponent<purrCameraComponent>().camera)) return false;
+    if (cameraObject.has_value() && !updateCamera(cameraObject.value(), cameraObject.value().getComponent<purrCameraComponent>().camera)) return false;
 
     std::vector<purrLight> lights;
     // Do this to prevent errors we could add a TransformComponent later
     auto view = registry.view<entt::entity>(entt::exclude<ParentComponent>);
     for (entt::entity childEntity: view) {
       auto v = updateLights(purrObject{mScene, childEntity}, registry, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-      lights.insert(v.begin(), v.end(), lights.end());
+      if (v.size() > 0) lights.insert(lights.end(), v.begin(), v.end());
     }
     if (!updateLights(lights)) return false;
 
@@ -133,7 +132,7 @@ namespace PurrfectEngine {
     VkPushConstantRange pcRange = {};
     pcRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     pcRange.offset = 0;
-    pcRange.size = sizeof(glm::ivec4);
+    pcRange.size = sizeof(glm::mat4);
 
     return ((mRenderTarget->initialize(purrRenderTargetInitInfo{
       VkExtent3D{
@@ -166,10 +165,7 @@ namespace PurrfectEngine {
           0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT, VK_NULL_HANDLE
         },
         VkDescriptorSetLayoutBinding{
-          1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, VK_NULL_HANDLE
-        },
-        VkDescriptorSetLayoutBinding{
-          2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, VK_NULL_HANDLE
+          1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, VK_NULL_HANDLE
         },
       };
 
@@ -237,7 +233,7 @@ namespace PurrfectEngine {
 
       vkUpdateDescriptorSets(mDevice, 1, &writeInfo, 0, VK_NULL_HANDLE);
     }
-    
+
 
     return createResources();
   }
@@ -254,15 +250,8 @@ namespace PurrfectEngine {
     mPipeline->bind(cmdBuf);
 
     vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->getLayout(), 0, 1, &mSceneSet, 0, VK_NULL_HANDLE);
-    size_t idx = 0;
-    for (purrObject& object : mScene->getObjectsFlat()) {
-    purrMesh3DComponent& comp = object.getComponent<purrMesh3DComponent>();
-
-    glm::ivec4 data = {idx, 0, 0, 0};
-    vkCmdPushConstants(cmdBuf, mPipeline->getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::ivec4), &data);
-    comp.mesh.render(cmdBuf);
-    ++idx;
-    }   
+    auto view = ((entt::registry&)*mScene).view<entt::entity>(entt::exclude<ParentComponent>);
+    for (entt::entity entity: view) renderObj(cmdBuf, purrObject{mScene, entity});
     mRenderTarget->end(cmdBuf);
 
     return true;
@@ -277,6 +266,8 @@ namespace PurrfectEngine {
     delete mSampler;
     delete mRenderTarget;
     delete mPipeline;
+
+    for (purrMesh3D *mesh3D: mMeshes) delete mesh3D;
   }
 
   purrRendererInitInfo purrRenderer3D::getInitInfo() {
@@ -305,36 +296,54 @@ namespace PurrfectEngine {
     return mRenderTarget;
   }
 
+  bool purrRenderer3D::renderObj(VkCommandBuffer cmdBuf, purrObject obj, glm::mat4 parentTrans) {
+    if (!obj.hasComponent<purrTransform>()) return false;
+    glm::mat4 data = obj.getComponent<purrTransform>().getTransform() * parentTrans;
+    if (obj.hasComponent<purrMesh3DComponent>()) {
+      purrMesh3DComponent& comp = obj.getComponent<purrMesh3DComponent>();
+
+      vkCmdPushConstants(cmdBuf, mPipeline->getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &data);
+      comp.mesh->render(cmdBuf);
+    }
+    if (obj.hasComponent<ChildrenComponent>()) {
+      ChildrenComponent &children = obj.getComponent<ChildrenComponent>();
+      for (entt::entity child: children.children) if (!renderObj(cmdBuf, purrObject{mScene, child}, data)) return false;
+    }
+
+    return true;
+  }
+
   std::vector<purrLight> purrRenderer3D::updateLights(purrObject obj, entt::registry &registry, glm::vec4 parentPosition) {
     std::vector<purrLight> vec;
 
-    if (obj.hasComponent<purrLight>()) {
-      purrLight light = obj.getComponent<purrLight>();
-      light.position += parentPosition;
+    glm::vec4 pos = parentPosition;
+    if (obj.hasComponent<purrTransform>()) pos += glm::vec4(obj.getComponent<purrTransform>().getPosition(), 0.0f);
+    if (obj.hasComponent<purrLightComponent>()) {
+      purrLightComponent lightComponent = obj.getComponent<purrLightComponent>();
+      purrLight light{};
+      light.position = pos;
+      light.color = lightComponent.color;
       vec.push_back(light);
     }
-    auto view = registry.view<ParentComponent>();
-    for (entt::entity entity : view) {
-      purrObject child = {mScene, entity};
-      ParentComponent parent = child.getComponent<ParentComponent>();
-      if (static_cast<uint32_t>(parent.parent) != static_cast<uint32_t>(obj.getUuid())) continue;
-      glm::vec4 pos = parentPosition;
-      if (child.hasComponent<purrTransform>()) {
-      glm::vec3 childPos = child.getComponent<purrTransform>().getPosition();
-      pos += glm::vec4(childPos, 1.0f);
+    if (obj.hasComponent<ChildrenComponent>()) {
+      ChildrenComponent &children = obj.getComponent<ChildrenComponent>();
+      for (entt::entity entity: children.children) {
+        purrObject child = purrObject{mScene, entity};
+        glm::vec4 childPos = pos;
+        if (child.hasComponent<purrTransform>()) childPos += glm::vec4(child.getComponent<purrTransform>().getPosition(), 0.0f);
+        auto childLights = updateLights(child, registry, childPos);
+        vec.insert(vec.end(), childLights.begin(), childLights.end());
       }
-      auto childLights = updateLights(child, registry, pos);
-      vec.insert(vec.end(), childLights.begin(), childLights.end());
     }
 
     return vec;
   }
 
 
-  bool purrRenderer3D::updateCamera(purrCamera camera) {
+  bool purrRenderer3D::updateCamera(purrObject obj, purrCamera camera) {
     void *data = malloc(sizeof(glm::mat4)*2);
     glm::mat4 proj = camera.getProjection();
-    glm::mat4 view = camera.getView();
+    glm::mat4 view = camera.getView(obj.getComponent<purrTransform>());
     memcpy(data,                            &proj, sizeof(glm::mat4));
     memcpy(((char*)data)+sizeof(glm::mat4), &view, sizeof(glm::mat4));
     purrBuffer *stagingBuf = new purrBuffer();
@@ -371,7 +380,7 @@ namespace PurrfectEngine {
     writeInfo.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writeInfo.pNext            = VK_NULL_HANDLE;
     writeInfo.dstSet           = mSceneSet;
-    writeInfo.dstBinding       = 2;
+    writeInfo.dstBinding       = 1;
     writeInfo.dstArrayElement  = 0;
     writeInfo.descriptorCount  = 1;
     writeInfo.descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;

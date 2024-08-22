@@ -11,14 +11,13 @@ namespace PurrfectEngine {
   {}
 
   purrObject purrObject::createChild() {
-    entt::entity entity = mScene->mRegistry.create();
-    purrObject child{mScene, entity};
+    purrObject child = mScene->newObject();
     child.addComponent<ParentComponent>(mHandle);
     if (hasComponent<ChildrenComponent>()) {
       ChildrenComponent &children = getComponent<ChildrenComponent>();
-      children.children.push_back(entity);
+      children.children.push_back(child.mHandle);
     } else {
-      addComponent<ChildrenComponent>(std::vector<entt::entity>{entity});
+      addComponent<ChildrenComponent>(std::vector<entt::entity>{child.mHandle});
     }
 
     return child;

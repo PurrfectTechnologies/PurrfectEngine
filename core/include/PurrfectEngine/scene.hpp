@@ -9,10 +9,10 @@ namespace PurrfectEngine {
   public:
     purrScene();
     purrScene(PUID cameraUuid);
+    ~purrScene();
 
     purrObject newObject();
     std::optional<purrObject> getObject(PUID uuid);
-    std::vector<purrObject> getObjectsFlat() const;
     void removeObject(PUID uuid);
 
     void setCamera(PUID uuid) { mCameraUuid = uuid; }

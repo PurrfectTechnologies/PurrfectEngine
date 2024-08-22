@@ -12,20 +12,15 @@ namespace PurrfectEngine {
       float farPlane = 100.0f;
     };
   public:
-    purrCamera(purrTransform *transform = nullptr);
+    purrCamera();
     ~purrCamera();
 
     void setSettings(Settings settings) { mSettings = settings; }
 
     glm::mat4 getProjection();
-    glm::mat4 getView();
-
-    void setTransform(purrTransform *trans) { mTransform = trans; }
-    purrTransform *getTransform() const { return mTransform; }
+    glm::mat4 getView(purrTransform transform);
   private:
     Settings mSettings{};
-
-    purrTransform *mTransform = nullptr;
   };
 
   struct purrCameraComponent {

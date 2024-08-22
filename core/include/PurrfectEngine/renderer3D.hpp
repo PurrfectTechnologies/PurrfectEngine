@@ -30,7 +30,6 @@ namespace PurrfectEngine {
   class purrMesh3D {
   public:
     purrMesh3D();
-    ~purrMesh3D();
 
     bool initialize();
     void cleanup();
@@ -48,7 +47,7 @@ namespace PurrfectEngine {
   };
 
   struct purrMesh3DComponent {
-    purrMesh3D mesh;
+    purrMesh3D *mesh;
   };
 
   struct purrObject3D {
@@ -65,6 +64,7 @@ namespace PurrfectEngine {
   };
 
   class purrRenderer3D: public purrRenderer {
+    friend class purrMesh3D;
   public:
     purrRenderer3D();
 
@@ -86,9 +86,12 @@ namespace PurrfectEngine {
     virtual VkSampleCountFlagBits getSampleCount() override;
     virtual purrRenderTarget *getRenderTarget()    override;
   private:
+    void registerMesh(purrMesh3D *mesh) { mMeshes.push_back(mesh); }
+  private:
+    bool renderObj(VkCommandBuffer cmdBuf, purrObject obj, glm::mat4 parentTrans = glm::mat4(1.0f));
     std::vector<purrLight> updateLights(purrObject obj, entt::registry &registry, glm::vec4 parentPosition);
   private:
-    bool updateCamera(purrCamera camera);
+    bool updateCamera(purrObject obj, purrCamera camera);
     bool updateLights(std::vector<purrLight> lights);
   private:
     VkDescriptorSetLayout mSceneLayout    = VK_NULL_HANDLE; // Layout for objectBuffer and camera UBO.
@@ -97,6 +100,8 @@ namespace PurrfectEngine {
 
     purrBuffer *mCameraBuffer = nullptr;
     purrBuffer *mLightBuffer = nullptr;
+
+    std::vector<purrMesh3D*> mMeshes{};
   private:
     purrScene        *mScene = nullptr;
     purrSampler      *mSampler = nullptr;
