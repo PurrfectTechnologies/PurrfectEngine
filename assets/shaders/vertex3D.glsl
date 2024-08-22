@@ -14,14 +14,6 @@ layout (binding = 0) uniform CameraBuffer {
   vec4 pos;
 } camera;
 
-struct ObjectData {
-	mat4 model;
-};
-
-layout(std140, binding = 1) readonly buffer ObjectBuffer{
-	ObjectData objects[];
-} objectBuffer;
-
 layout (push_constant) uniform constants {
-  ivec4 data; // w = model #
+  mat4 transform;
 } pc;

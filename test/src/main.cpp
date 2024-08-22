@@ -5,100 +5,84 @@
 
 using namespace PurrfectEngine;
 
-class testApp: public purrApp {
+class testApp : public purrApp {
 public:
-  testApp():
-    purrApp(purrAppCreateInfo{"PurrEngineTest"}, {
-      new purrAppRendererExt(new purrRenderer3D(), purrWindowInitInfo{"PurrfectEngine - Test", 1920, 1080}, purrRendererInitInfo{{ VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }}),
+  testApp() :
+    purrApp(purrAppCreateInfo{ "PurrEngineTest" }, {
+      new purrAppRendererExt(new purrRenderer3D(), purrWindowInitInfo{ "PurrfectEngine - Test", 1920, 1080 }, purrRendererInitInfo{ { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" } }),
       new purrAppAudioExt()
     })
   {}
 
   ~testApp() {
-
+    cleanup();
   }
+
 protected:
   virtual bool initialize() override {
-    input::GetEventHandler()->on("keyEvent", [](purrEvent *event){
-      purrKeyEvent *keyEvent = (purrKeyEvent*)event;
+    input::GetEventHandler()->on("keyEvent", [](purrEvent* event) {
+      purrKeyEvent* keyEvent = (purrKeyEvent*)event;
     });
 
-    input::GetEventHandler()->on("mouseButtonEvent", [](purrEvent *event){
-      purrMouseBtnEvent *mouseEvent = (purrMouseBtnEvent*)event;
+    input::GetEventHandler()->on("mouseButtonEvent", [](purrEvent* event) {
+      purrMouseBtnEvent* mouseEvent = (purrMouseBtnEvent*)event;
     });
 
-    input::GetEventHandler()->on("mouseMoveEvent", [](purrEvent *event){
-      purrMouseMoveEvent *mouseEvent = (purrMouseMoveEvent*)event;
+    input::GetEventHandler()->on("mouseMoveEvent", [](purrEvent* event) {
+      purrMouseMoveEvent* mouseEvent = (purrMouseMoveEvent*)event;
     });
 
     mScene = new purrScene();
-    { // Initialize object
-      purrObject *root = mScene->newObject();
-      root->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
-      purrObject *meshObj = mScene->newChildObject(root);
-      if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &meshObj)) return 1;
-      mScene->addObject(meshObj);
-      purrObject *lightObj = mScene->newChildObject(root);
-      lightObj->addComponent(new purrLightComp(glm::vec4(1.0f, 0.0f, 0.0f, 0.0f)));
-      lightObj->getTransform()->setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
-    }
 
-    { // Initialize camera
-      purrObject *obj = mScene->newObject();
-      if (!obj) return false;
-      obj->addComponent(new purrCameraComp(new purrCamera()));
-      mScene->addObject(obj);
-      mScene->setCamera(obj);
-    }
+    purrObject player = mScene->newObject();
+    player.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+    mPlayer = player.getUuid();
 
-    { // Initialize audio listener
-      purrObject *obj = mScene->newObject();
-      if (!obj) return false;
-      obj->addComponent(new purrAudioListenerComp());
-      mScene->addObject(obj);
-      mScene->setAudioListener(obj);
-    }
+    purrObject camera = player.createChild();
+    camera.addComponent<purrCameraComponent>(purrCamera());
+    mScene->setCamera(camera.getUuid());
 
-    { // Initialize audio source
-      purrObject *obj = mScene->newObject();
-      if (!obj) return false;
+    purrObject meshObj = mScene->newObject();
+    meshObj.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
+    if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &meshObj)) return 1;
 
-      purrAudioSource *source = purrAudioEngine::getInstance()->newSource();
-      // We don't have an example sound effect :p
-      // if (!purrAudioEngine::load("./assets/sound/sound.wav", &source) ||
-      //     !source->initialize()) return false;
-      source->play();
+    purrObject lightObj = mScene->newObject();
+    lightObj.addComponent<purrLightComponent>(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    lightObj.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
 
-      obj->addComponent(new purrAudioSourceComp(source));
-      mScene->addObject(obj);
-    }
-
-    purrRenderer3D *renderer = (purrRenderer3D*)purrRenderer::getInstance();
-    renderer->setScene(mScene);
-    return renderer->update();
+    mRenderer = (purrRenderer3D*)purrRenderer::getInstance();
+    mRenderer->setScene(mScene);
+    return mRenderer->update();
   }
 
   virtual bool update(float dt) override {
-    int x = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
-    int z = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
+    auto player_opt = mScene->getObject(mPlayer);
+    if (!player_opt.has_value()) return true;
+    purrObject player = player_opt.value();
 
-    if (mScene->getCamera() && mScene->getCamera()->getTransform()) {
-      mScene->getCamera()->getTransform()->setPosition(mScene->getCamera()->getTransform()->getPosition() + (glm::vec3((float)x, 0.0f, (float)z * dt)));
+    static constexpr float speed = 10.0f;
+    int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
+    int z = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
+
+    if (player.hasComponent<purrTransform>()) {
+      purrTransform &transform = player.getComponent<purrTransform>();
+      glm::vec3 forward = transform.getForward() * (float)z;
+      glm::vec3 right = transform.getRight() * (float)x;
+      transform.setPosition(transform.getPosition() + ((forward + right) * speed * dt));
     }
 
-    return true;
+    return mRenderer->update();
   }
 
   virtual void cleanup() override {
     delete mScene;
-    delete mAudioListener;
   }
 private:
+  purrRenderer3D *mRenderer = nullptr;
   purrScene *mScene = nullptr;
-  purrAudioListener *mAudioListener = nullptr;
-  purrAudioSource *mAudioSource = nullptr;
+  PUID mPlayer;
 };
 
-purrApp *PurrfectEngine::CreateApp() {
+purrApp* PurrfectEngine::CreateApp() {
   return new testApp();
 }

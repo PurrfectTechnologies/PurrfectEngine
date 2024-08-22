@@ -2,9 +2,8 @@
 
 namespace PurrfectEngine {
 
-  purrCamera::purrCamera(purrTransform *transform):
-    mTransform(transform)
-  {  }
+  purrCamera::purrCamera()
+  {}
 
   purrCamera::~purrCamera() {
     
@@ -16,8 +15,8 @@ namespace PurrfectEngine {
     return proj;
   }
 
-  glm::mat4 purrCamera::getView() {
-    return glm::lookAt(mTransform->getPosition(), mTransform->getPosition() + mTransform->getForward(), mTransform->getUp());
+  glm::mat4 purrCamera::getView(purrTransform transform) {
+    return glm::lookAt(transform.getPosition(), transform.getPosition() + transform.getForward(), transform.getUp());
   }
 
 }

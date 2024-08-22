@@ -986,8 +986,14 @@ namespace PurrfectEngine {
 
   void purrBuffer::cleanup() {
     purrRenderer *renderer = purrRenderer::getInstance();
-    if (mBuffer) vkDestroyBuffer(renderer->mDevice, mBuffer, VK_NULL_HANDLE);
-    if (mMemory) vkFreeMemory(renderer->mDevice, mMemory, VK_NULL_HANDLE);
+    if (mBuffer) {
+      vkDestroyBuffer(renderer->mDevice, mBuffer, VK_NULL_HANDLE);
+      mBuffer = VK_NULL_HANDLE;
+    }
+    if (mMemory) {
+      vkFreeMemory(renderer->mDevice, mMemory, VK_NULL_HANDLE);
+      mBuffer = VK_NULL_HANDLE;
+    }
   }
 
   void purrBuffer::copy(void *data, VkDeviceSize size, VkDeviceSize offset) {
