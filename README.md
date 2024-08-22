@@ -59,6 +59,7 @@ Even though possible, PurrfectEngine doesn't implement everything, that's where 
 - [openal-soft](https://github.com/kcat/openal-soft)
 - [libsndfile](https://github.com/libsndfile/libsndfile)
 - [minimp3](https://github.com/lieff/minimp3)
+- [entt](https://github.com/skypjack/entt)
 
 ## Issues
 
