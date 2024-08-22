@@ -4,8 +4,8 @@
 
 namespace PurrfectEngine {
 
-  purrAppRendererExt::purrAppRendererExt(purrRenderer *renderer, purrWindowInitInfo windowInfo, purrRendererInitInfo rendererInfo):
-    mRenderer(renderer), mWindowInfo(windowInfo), mRendererInfo(rendererInfo)
+  purrAppRendererExt::purrAppRendererExt(purrRenderer *renderer, purrWindowInitInfo windowInfo):
+    mRenderer(renderer), mWindowInfo(windowInfo)
   {}
 
   purrAppRendererExt::~purrAppRendererExt() {
@@ -15,9 +15,7 @@ namespace PurrfectEngine {
 
   bool purrAppRendererExt::initialize() {
     mWindow = new purrWindow();
-    if (!mWindow->initialize(purrWindowInitInfo{
-      "PurrfectEngine - Test", 1920, 1080
-    })) return false;
+    if (!mWindow->initialize(mWindowInfo)) return false;
     input::SetWindow(mWindow);
 
     mRenderer = new purrRenderer3D();

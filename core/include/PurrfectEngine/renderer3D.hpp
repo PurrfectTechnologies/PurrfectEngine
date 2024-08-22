@@ -89,7 +89,7 @@ namespace PurrfectEngine {
   private:
     void registerMesh(purrMesh3D *mesh) { mMeshes.push_back(mesh); }
   private:
-    bool renderObj(VkCommandBuffer cmdBuf, purrObject obj, glm::mat4 parentTrans = glm::mat4(1.0f));
+    void renderObj(VkCommandBuffer cmdBuf, purrObject obj);
     std::vector<purrLight> updateLights(purrObject obj, entt::registry &registry, glm::vec4 parentPosition);
   private:
     bool updateCamera(purrObject obj, purrCamera camera);

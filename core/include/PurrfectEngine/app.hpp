@@ -19,7 +19,7 @@ namespace PurrfectEngine {
 
   class purrAppRendererExt: public purrAppExt {
   public:
-    purrAppRendererExt(purrRenderer *renderer, purrWindowInitInfo windowInfo, purrRendererInitInfo rendererInfo);
+    purrAppRendererExt(purrRenderer *renderer, purrWindowInitInfo windowInfo);
     ~purrAppRendererExt();
 
     virtual bool initialize() override;
@@ -28,7 +28,6 @@ namespace PurrfectEngine {
     virtual void cleanup()    override;
   private:
     purrWindowInitInfo mWindowInfo;
-    purrRendererInitInfo mRendererInfo;
   private:
     purrWindow *mWindow = nullptr;
     purrRenderer *mRenderer = nullptr;

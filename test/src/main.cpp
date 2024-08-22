@@ -9,7 +9,7 @@ class testApp : public purrApp {
 public:
   testApp() :
     purrApp(purrAppCreateInfo{ "PurrEngineTest" }, {
-      new purrAppRendererExt(new purrRenderer3D(), purrWindowInitInfo{ "PurrfectEngine - Test", 1920, 1080 }, purrRendererInitInfo{ { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" } }),
+      new purrAppRendererExt(new purrRenderer3D(), purrWindowInitInfo{ "PurrfectEngine - Test", 1920, 1080 }),
       new purrAppAudioExt()
     })
   {}

@@ -257,7 +257,7 @@ namespace PurrfectEngine {
     mPipeline->bind(cmdBuf);
 
     vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->getLayout(), 0, 1, &mSceneSet, 0, VK_NULL_HANDLE);
-    auto view = ((entt::registry&)*mScene).view<entt::entity>(entt::exclude<ParentComponent>);
+    auto view = ((entt::registry&)*mScene).view<purrMesh3DComponent>();
     for (entt::entity entity: view) renderObj(cmdBuf, purrObject{mScene, entity});
     mRenderTarget->end(cmdBuf);
 
@@ -279,7 +279,7 @@ namespace PurrfectEngine {
 
   purrRendererInitInfo purrRenderer3D::getInitInfo() {
     return purrRendererInitInfo{
-      { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }, nullptr, VkPhysicalDeviceFeatures{}, {}, {}, purrRendererSwapchainInfo{ true }
+      { VK_EXT_DEBUG_UTILS_EXTENSION_NAME }, nullptr, { "VK_LAYER_KHRONOS_validation" }, nullptr, VkPhysicalDeviceFeatures{}, {}, {}, purrRendererSwapchainInfo{ false }
     };
   }
 
@@ -303,21 +303,18 @@ namespace PurrfectEngine {
     return mRenderTarget;
   }
 
-  bool purrRenderer3D::renderObj(VkCommandBuffer cmdBuf, purrObject obj, glm::mat4 parentTrans) {
-    if (!obj.hasComponent<purrTransform>()) return false;
-    glm::mat4 data = obj.getComponent<purrTransform>().getTransform() * parentTrans;
-    if (obj.hasComponent<purrMesh3DComponent>()) {
-      purrMesh3DComponent& comp = obj.getComponent<purrMesh3DComponent>();
+  void purrRenderer3D::renderObj(VkCommandBuffer cmdBuf, purrObject obj) {
+    purrLightComponent lightComponent = obj.getComponent<purrLightComponent>();
+    purrTransform *fullTrans = obj.fullTransform();
+    if (!fullTrans) return;
 
-      vkCmdPushConstants(cmdBuf, mPipeline->getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &data);
-      comp.mesh->render(cmdBuf);
-    }
-    if (obj.hasComponent<ChildrenComponent>()) {
-      ChildrenComponent &children = obj.getComponent<ChildrenComponent>();
-      for (entt::entity child: children.children) if (!renderObj(cmdBuf, purrObject{mScene, child}, data)) return false;
-    }
+    purrMesh3DComponent& comp = obj.getComponent<purrMesh3DComponent>();
 
-    return true;
+    glm::mat4 data = fullTrans->getTransform();
+    vkCmdPushConstants(cmdBuf, mPipeline->getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &data);
+    comp.mesh->render(cmdBuf);
+
+    delete fullTrans;
   }
 
   std::vector<purrLight> purrRenderer3D::updateLights(purrObject obj, entt::registry &registry, glm::vec4 parentPosition) {
@@ -350,6 +347,7 @@ namespace PurrfectEngine {
   bool purrRenderer3D::updateCamera(purrObject obj, purrCamera camera) {
     void *data = malloc(sizeof(glm::mat4)*2);
     purrTransform *fullTrans = obj.fullTransform();
+    if (!fullTrans) return false;
     glm::mat4 proj = camera.getProjection();
     glm::mat4 view = camera.getView(*fullTrans);
     delete fullTrans;

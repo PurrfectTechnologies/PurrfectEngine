@@ -695,8 +695,10 @@ namespace PurrfectEngine {
       VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
       if (!swapchainInfo.VSync) { // Choose swpachain present mode
         for (const auto& availablePresentMode : presentModes)
-          if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+          if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
             presentMode = availablePresentMode;
+            break;
+          }
       }
 
       VkExtent2D extent = capabilities.currentExtent;
