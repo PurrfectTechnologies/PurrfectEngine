@@ -35,23 +35,24 @@ protected:
     mScene = new purrScene();
 
     purrObject player = mScene->newObject();
-    player.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
+    player.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
     mPlayer = player.getUuid();
 
-    purrObject meshObj = player.createChild();
+    purrObject camera = player.createChild();
+    camera.addComponent<purrCameraComponent>(purrCamera());
+    mScene->setCamera(camera.getUuid());
+
+    purrObject meshObj = mScene->newObject();
+    meshObj.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
     if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &meshObj)) return 1;
 
-    purrObject lightObj = player.createChild();
+    purrObject lightObj = mScene->newObject();
     lightObj.addComponent<purrLightComponent>(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
     lightObj.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
 
-    purrObject obj = mScene->newObject();
-    obj.addComponent<purrCameraComponent>(purrCamera());
-    mScene->setCamera(obj.getUuid());
-
-    purrRenderer3D* renderer = (purrRenderer3D*)purrRenderer::getInstance();
-    renderer->setScene(mScene);
-    return renderer->update();
+    mRenderer = (purrRenderer3D*)purrRenderer::getInstance();
+    mRenderer->setScene(mScene);
+    return mRenderer->update();
   }
 
   virtual bool update(float dt) override {
@@ -59,22 +60,26 @@ protected:
     if (!player_opt.has_value()) return true;
     purrObject player = player_opt.value();
 
-    int x = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
-    int z = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
+    static constexpr float speed = 10.0f;
+    int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
+    int z = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
 
     if (player.hasComponent<purrTransform>()) {
       purrTransform &transform = player.getComponent<purrTransform>();
-      transform.setPosition(transform.getPosition() + (glm::vec3((float)x, 0.0f, (float)z) * dt));
+      glm::vec3 forward = transform.getForward() * (float)z;
+      glm::vec3 right = transform.getRight() * (float)x;
+      transform.setPosition(transform.getPosition() + ((forward + right) * speed * dt));
     }
 
-    return true;
+    return mRenderer->update();
   }
 
   virtual void cleanup() override {
     delete mScene;
   }
 private:
-  purrScene* mScene = nullptr;
+  purrRenderer3D *mRenderer = nullptr;
+  purrScene *mScene = nullptr;
   PUID mPlayer;
 };
 

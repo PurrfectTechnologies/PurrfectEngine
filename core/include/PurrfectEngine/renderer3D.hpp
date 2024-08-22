@@ -30,6 +30,7 @@ namespace PurrfectEngine {
   class purrMesh3D {
   public:
     purrMesh3D();
+    ~purrMesh3D();
 
     bool initialize();
     void cleanup();

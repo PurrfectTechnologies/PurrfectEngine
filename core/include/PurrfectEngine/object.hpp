@@ -42,6 +42,8 @@ namespace PurrfectEngine {
       mScene->mRegistry.remove<T>(mHandle);
     }
 
+    purrTransform *fullTransform();
+
     purrObject createChild();
 
     PUID getUuid() const { return mUuid; }

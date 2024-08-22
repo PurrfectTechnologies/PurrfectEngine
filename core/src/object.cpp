@@ -10,6 +10,22 @@ namespace PurrfectEngine {
     mScene(scene), mHandle(entity)
   {}
 
+  purrTransform *purrObject::fullTransform() {
+    if (!hasComponent<purrTransform>()) return nullptr;
+    purrTransform trans = getComponent<purrTransform>();
+
+    glm::mat4 transMat = trans.getTransform();
+    purrObject obj = *this;
+    while (obj.hasComponent<ParentComponent>()) {
+      ParentComponent parent = obj.getComponent<ParentComponent>();
+      obj = purrObject{mScene, parent.parent};
+      if (!obj.hasComponent<purrTransform>()) continue;
+      transMat = obj.getComponent<purrTransform>().getTransform() * transMat;
+    }
+
+    return new purrTransform(transMat);
+  }
+
   purrObject purrObject::createChild() {
     purrObject child = mScene->newObject();
     child.addComponent<ParentComponent>(mHandle);

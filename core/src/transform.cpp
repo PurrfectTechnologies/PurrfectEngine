@@ -29,7 +29,7 @@ namespace PurrfectEngine {
     mScale.z = glm::length(glm::vec3(mTransform[2]));
     mRot = glm::quat_cast(mTransform);
   }
-  
+
   glm::vec3 purrTransform::getForward() {
     return glm::normalize(glm::rotate(mRot, glm::vec3(0.0f, 0.0f, 1.0f)));
   }

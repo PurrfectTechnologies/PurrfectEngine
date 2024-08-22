@@ -9,6 +9,10 @@ namespace PurrfectEngine {
   purrMesh3D::purrMesh3D()
   {}
 
+  purrMesh3D::~purrMesh3D() {
+    cleanup();
+  }
+
   bool purrMesh3D::initialize() {
     mVBuffer = new purrBuffer();
     mIBuffer = new purrBuffer();
@@ -116,12 +120,15 @@ namespace PurrfectEngine {
     auto cameraObject = mScene->getCamera();
     if (cameraObject.has_value() && !updateCamera(cameraObject.value(), cameraObject.value().getComponent<purrCameraComponent>().camera)) return false;
 
-    std::vector<purrLight> lights;
+    std::vector<purrLight> lights{};
     // Do this to prevent errors we could add a TransformComponent later
-    auto view = registry.view<entt::entity>(entt::exclude<ParentComponent>);
-    for (entt::entity childEntity: view) {
-      auto v = updateLights(purrObject{mScene, childEntity}, registry, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-      if (v.size() > 0) lights.insert(lights.end(), v.begin(), v.end());
+    auto view = registry.view<purrLightComponent>();
+    for (entt::entity entity: view) {
+      purrObject obj = {mScene, entity};
+      purrLightComponent lightComponent = obj.getComponent<purrLightComponent>();
+      purrTransform *fullTrans = obj.fullTransform();
+      lights.push_back(purrLight{glm::vec4(fullTrans->getPosition(), 1.0f), lightComponent.color});
+      delete fullTrans;
     }
     if (!updateLights(lights)) return false;
 
@@ -342,8 +349,10 @@ namespace PurrfectEngine {
 
   bool purrRenderer3D::updateCamera(purrObject obj, purrCamera camera) {
     void *data = malloc(sizeof(glm::mat4)*2);
+    purrTransform *fullTrans = obj.fullTransform();
     glm::mat4 proj = camera.getProjection();
-    glm::mat4 view = camera.getView(obj.getComponent<purrTransform>());
+    glm::mat4 view = camera.getView(*fullTrans);
+    delete fullTrans;
     memcpy(data,                            &proj, sizeof(glm::mat4));
     memcpy(((char*)data)+sizeof(glm::mat4), &view, sizeof(glm::mat4));
     purrBuffer *stagingBuf = new purrBuffer();
