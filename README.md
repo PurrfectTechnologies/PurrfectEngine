@@ -1,6 +1,6 @@
 # PurrfectEngine
 
-PurrfectEngine is a game/application engine made in C++ designed for beginners and experts. It is developed by 2 humans ([CatDev](https://github.com/RealCatDev) and [ImagineForgee](https://github.com/1mag1n33)).
+PurrfectEngine is a game/application engine made in C++ designed for beginners and experts. It is developed by 2 humans ([CatDev](https://github.com/RealCatDev) and [ImagineForgee](https://github.com/ImagineForgee)).
 
 > [!NOTE]
 > PurrfectEngine is still under development, things may and probably will change.
