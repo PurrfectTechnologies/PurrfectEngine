@@ -1,6 +1,6 @@
 # PurrfectEngine
 
-PurrfectEngine is a game/application engine made in C++ designed for beginners and experts. It is developed by 2 humans ([CatDev](https://github.com/RealCatDev) and [1mag1n33](https://github.com/1mag1n33)).
+PurrfectEngine is a game/application engine made in C++ designed for beginners and experts. It is developed by 2 humans ([CatDev](https://github.com/RealCatDev) and [ImagineForgee](https://github.com/ImagineForgee)).
 
 > [!NOTE]
 > PurrfectEngine is still under development, things may and probably will change.
@@ -73,12 +73,12 @@ Our team (as mentioned above) consists at the moment of 2 humans (not much), if 
 
 Members:
 - CatDev: Creator of PurrfectEngine I guess.
-- 1mag1n33: Really important person for PurrfectEngine.
+- ImagineForgee: Really important person for PurrfectEngine.
 
 ## Ending
 
 I (CatDev) would like to thank you for reading this, I know for sure younger me wouldn't read this (and probably present me neither :p), I can't end this README without mentioning people that this project wouldn't be possible without:
-- First (and probably the most obvious) is 1mag1n33, without him I probably wouldn't even try to create this engine (not to mention the progress I've made thanks to him).
+- First (and probably the most obvious) is ImagineForgee, without him I probably wouldn't even try to create this engine (not to mention the progress I've made thanks to him).
 - Second, is God, he's creator of me, you and everything around us, this note is probably the best way to thank him for the abilities that I have from the finite other ways that I could.
 - Third is Tsoding, I just love his streams, every stream fills me with emotions, whether it's when his code works first time and chat spams "stfu", or whether it's when he misses such an obvious mistake that it makes me so mad :3.
 - Even though God knew me before I was born, I wouldn't be here without my mom who showed me the way world works, I would be no one without her.
