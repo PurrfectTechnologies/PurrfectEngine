@@ -24,7 +24,7 @@ namespace PurrfectEngine {
 
   bool purrAppRendererExt::preUpdate() {
     glfwPollEvents();
-
+    input::update();
     return !mWindow->shouldClose();
   }
 

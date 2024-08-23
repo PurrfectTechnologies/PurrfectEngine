@@ -37,7 +37,7 @@ namespace PurrfectEngine {
   }
 
   std::optional<purrObject> purrScene::getCamera() {
-    return {getObject(mCameraUuid)};
+    return getObject(mCameraUuid);
   }
 
 }

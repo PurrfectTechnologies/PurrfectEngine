@@ -172,21 +172,23 @@ namespace PurrfectEngine {
 		};
 		}
 
-		purrEventHandler<purrEvent> *GetEventHandler();
-
-	  void      SetWindow(purrWindow *window);
-    bool      IsKeyDown(KeyCode key);
-    bool      IsKeyUp(KeyCode key);
-    bool      IsMouseDown(MouseCode btn);
-    glm::vec2 GetMousePos();
-
-    enum class MouseMode {
+		enum class MouseMode {
       Normal = GLFW_CURSOR_NORMAL,
       Hidden = GLFW_CURSOR_HIDDEN,
       Disabled = GLFW_CURSOR_DISABLED,
     };
 
-    void SetMouseMode(MouseMode mode);
+		purrEventHandler<purrEvent> *GetEventHandler();
+
+		void update();
+
+	  void       SetWindow(purrWindow *window);
+    bool       IsKeyDown(KeyCode key);
+    bool       IsKeyUp(KeyCode key);
+    bool       IsMouseDown(MouseCode btn);
+    glm::dvec2 GetMousePos();
+		glm::dvec2 GetMouseDelta();
+    void       SetMouseMode(MouseMode mode);
 
   }
 

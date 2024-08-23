@@ -20,17 +20,21 @@ public:
 
 protected:
   virtual bool initialize() override {
-    input::GetEventHandler()->on("keyEvent", [](purrEvent* event) {
-      purrKeyEvent* keyEvent = (purrKeyEvent*)event;
+    input::GetEventHandler()->on("keyEvent", [this](purrEvent* event) {
+      purrKeyEvent *keyEvent = (purrKeyEvent*)event;
+      if (keyEvent->getKey() == input::key::Escape && keyEvent->getAction() == input::button::Pressed) mPaused = !mPaused;
+      input::SetMouseMode(mPaused?input::MouseMode::Normal:input::MouseMode::Disabled);
     });
 
-    input::GetEventHandler()->on("mouseButtonEvent", [](purrEvent* event) {
-      purrMouseBtnEvent* mouseEvent = (purrMouseBtnEvent*)event;
-    });
+    // input::GetEventHandler()->on("mouseButtonEvent", [](purrEvent* event) {
+    //   purrMouseBtnEvent *mouseEvent = (purrMouseBtnEvent*)event;
+    // });
 
     input::GetEventHandler()->on("mouseMoveEvent", [](purrEvent* event) {
-      purrMouseMoveEvent* mouseEvent = (purrMouseMoveEvent*)event;
+      purrMouseMoveEvent *mouseEvent = (purrMouseMoveEvent*)event;
     });
+
+    input::SetMouseMode(input::MouseMode::Disabled);
 
     mScene = new purrScene();
 
@@ -56,11 +60,13 @@ protected:
   }
 
   virtual bool update(float dt) override {
+    if (mPaused) return true;
+
     auto player_opt = mScene->getObject(mPlayer);
     if (!player_opt.has_value()) return true;
     purrObject player = player_opt.value();
 
-    static constexpr float speed = 10.0f;
+    static constexpr float speed = 100.0f;
     int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
     int z = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
 
@@ -68,7 +74,21 @@ protected:
       purrTransform &transform = player.getComponent<purrTransform>();
       glm::vec3 forward = transform.getForward() * (float)z;
       glm::vec3 right = transform.getRight() * (float)x;
-      transform.setPosition(transform.getPosition() + ((forward + right) * speed * dt));
+      if (glm::length(forward + right) > 0) transform.setPosition(transform.getPosition() + (glm::normalize(forward + right) * speed * dt));
+
+      static constexpr float sensitivity = 100.0;
+      glm::dvec2 mouseDeltaD = input::GetMouseDelta();
+      glm::vec2 mouseDelta = glm::vec2((float)mouseDeltaD.x, (float)mouseDeltaD.y) * sensitivity * dt;
+      mRotationX -= mouseDelta.y;
+      mRotationX  = glm::clamp(mRotationX, -90.0f, 90.0f);
+
+      transform.setRotation(glm::angleAxis(mouseDelta.x, glm::vec3(0.0f, 1.0f, 0.0f)) * transform.getRotation());
+
+      auto cameraOpt = mScene->getCamera();
+      if (cameraOpt.has_value()) {
+        purrTransform &cameraTransform = cameraOpt.value().getComponent<purrTransform>();
+        cameraTransform.setRotation(glm::quat(glm::vec3(glm::radians(mRotationX), 0.0f, 0.0f)));
+      }
     }
 
     return mRenderer->update();
@@ -77,6 +97,9 @@ protected:
   virtual void cleanup() override {
     delete mScene;
   }
+private:
+  bool mPaused = false;
+  float mRotationX = 0.0f;
 private:
   purrRenderer3D *mRenderer = nullptr;
   purrScene *mScene = nullptr;

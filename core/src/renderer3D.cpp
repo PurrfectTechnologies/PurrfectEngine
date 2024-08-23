@@ -304,7 +304,6 @@ namespace PurrfectEngine {
   }
 
   void purrRenderer3D::renderObj(VkCommandBuffer cmdBuf, purrObject obj) {
-    purrLightComponent lightComponent = obj.getComponent<purrLightComponent>();
     purrTransform *fullTrans = obj.fullTransform();
     if (!fullTrans) return;
 

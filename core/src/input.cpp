@@ -7,6 +7,18 @@ namespace PurrfectEngine {
 
   purrEventHandler<purrEvent> *input::GetEventHandler() { return sEventHandler; }
 
+  static bool sLastInitialized    = false;
+  static glm::dvec2 sLastMousePos = glm::dvec2();
+  static glm::dvec2 sMouseDelta   = glm::dvec2();
+
+  void input::update() {
+    if (sLastInitialized)
+      sMouseDelta = GetMousePos() - sLastMousePos;
+    else sLastInitialized = true;
+    sMouseDelta.y *= -1.0;
+    sLastMousePos = input::GetMousePos();
+  }
+
   void input::SetWindow(purrWindow *window) {
     glfwSetWindowUserPointer(window->get(), sEventHandler);
 
@@ -35,15 +47,19 @@ namespace PurrfectEngine {
   bool input::IsKeyUp(KeyCode key) {
     return !IsKeyDown(key);
   }
-  
+
   bool input::IsMouseDown(MouseCode btn) {
     return glfwGetMouseButton(sWindow->get(), static_cast<int32_t>(btn)) == GLFW_PRESS;
   }
-  
-  glm::vec2 input::GetMousePos() {
+
+  glm::dvec2 input::GetMousePos() {
     glm::dvec2 mouse{};
     glfwGetCursorPos(sWindow->get(), &mouse.x, &mouse.y);
     return {mouse.x,mouse.y};
+  }
+
+  glm::dvec2 input::GetMouseDelta() {
+    return sMouseDelta;
   }
 
   void input::SetMouseMode(MouseMode mode) {

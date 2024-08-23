@@ -21,7 +21,7 @@ namespace PurrfectEngine {
   };
 
   template <typename T>
-  using purr_event_callback_func = void (*)(T*);
+  using purr_event_callback_func = std::function<void(T*)>;
 
   template <typename T>
   struct purrEventCallbacks {
