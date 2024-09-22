@@ -42,5 +42,5 @@ jobs:
 
       - name: Build with MSVC on Windows
         run: |
-          cl nob.c
+          msbuild nob.c
           nob.exe init
