@@ -33,14 +33,19 @@ jobs:
           clang -o nob nob.c
           ./nob init
 
-  build-windows-msvc:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up MSVC
-        uses: microsoft/setup-msbuild@v1.0.2
+# Copied from https://github.com/tsoding/bm/blob/master/.github/workflows/ci.yml
 
-      - name: Build with MSVC on Windows
+  build-windows-msvc:
+    runs-on: windows-2019
+    steps:
+      - name: force LF
+        shell: cmd
         run: |
-          msbuild nob.c
-          nob.exe init
+          git config --global core.autocrlf input
+      - uses: actions/checkout@v1
+      - uses: seanmiddleditch/gha-setup-vsdevenv@master
+      - name: build
+        shell: cmd
+        run: |
+          cl.exe nob.c
+          .\nob.exe init
