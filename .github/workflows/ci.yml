@@ -2,38 +2,42 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-2022]
-        compiler: [gcc, clang]
-    
+  build-linux-gcc:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - name: Set up compilers
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      - name: Install GCC
+        run: sudo apt-get install -y gcc
+      - name: Build with GCC
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ${{ matrix.compiler }}
-
-      - name: Windows MSVC setup
-        if: matrix.os == 'windows-2022'
-        uses: actions/setup-msbuild@v1
-
-      - name: Build on Linux/macOS
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-        run: |
-          $CC -o nob nob.c
+          gcc -o nob nob.c
           ./nob init
-        env:
-          CC: ${{ matrix.compiler }}
-          CXX: ${{ matrix.compiler }}++
 
-      - name: Build on Windows
-        if: matrix.os == 'windows-2022'
-        shell: cmd
+  build-linux-clang:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Clang
+        run: sudo apt-get install -y clang
+      - name: Build with Clang
         run: |
-          cl.exe nob.c
-          .\nob.exe init
+          clang -o nob nob.c
+          ./nob init
+
+  build-macos:
+    runs-on: macOS-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build with Clang on macOS
+        run: |
+          clang -o nob nob.c
+          ./nob init
+
+  build-windows-msvc:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build with MSVC on Windows
+        run: |
+          cl nob.c
+          nob.exe init
