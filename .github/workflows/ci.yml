@@ -37,6 +37,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set up MSVC
+        uses: microsoft/setup-msbuild@v1.0.2
+
       - name: Build with MSVC on Windows
         run: |
           cl nob.c
