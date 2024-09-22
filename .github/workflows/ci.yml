@@ -1,52 +1,38 @@
-# Copied from https://github.com/tsoding/bm/blob/master/.github/workflows/ci.yml
-
 name: CI
 on: [push, pull_request]
 
 jobs:
-  build-linux-gcc:
-    runs-on: ubuntu-18.04
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2022]
+        compiler: [gcc, clang]
+    
     steps:
-      - uses: actions/checkout@v1
-      - name: build
+      - uses: actions/checkout@v3
+
+      - name: Set up compilers
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.compiler }}
+
+      - name: Windows MSVC setup
+        if: matrix.os == 'windows-2022'
+        uses: actions/setup-msbuild@v1
+
+      - name: Build on Linux/macOS
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: |
           $CC -o nob nob.c
           ./nob init
         env:
-          CC: gcc
-          CXX: g++
-  build-linux-clang:
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v1
-      - name: build
-        run: |
-          $CC -o nob nob.c
-          ./nob init
-        env:
-          CC: clang
-          CXX: clang++
-  build-macos:
-    runs-on: macOS-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: build everything
-        run: |
-          $CC -o nob nob.c
-          ./nob init
-        env:
-          CC: clang
-          CXX: clang++
-  build-windows-msvc:
-    runs-on: windows-2019
-    steps:
-      - name: force LF
-        shell: cmd
-        run: |
-          git config --global core.autocrlf input
-      - uses: actions/checkout@v1
-      - uses: seanmiddleditch/gha-setup-vsdevenv@master
-      - name: build
+          CC: ${{ matrix.compiler }}
+          CXX: ${{ matrix.compiler }}++
+
+      - name: Build on Windows
+        if: matrix.os == 'windows-2022'
         shell: cmd
         run: |
           cl.exe nob.c
