@@ -53,8 +53,6 @@ Even though possible, PurrfectEngine doesn't implement everything, that's where 
 - [Vulkan](https://github.com/KhronosGroup/Vulkan-Headers)
 - [glm](https://github.com/g-truc/glm)
 - [assimp](https://github.com/assimp/assimp)
-- [json](https://github.com/nlohmann/json/)
-- [KTX-Software](https://github.com/KhronosGroup/KTX-Software)
 - [stb](https://github.com/nothings/stb)
 - [openal-soft](https://github.com/kcat/openal-soft)
 - [libsndfile](https://github.com/libsndfile/libsndfile)
