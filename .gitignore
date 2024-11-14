@@ -1,2 +1,5 @@
 *.exe*
 build*/
+*.cap
+*.spv
+.vscode*/

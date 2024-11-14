@@ -2,20 +2,21 @@
 
 namespace PurrfectEngine {
 
-  purrCamera::purrCamera(purrTransform *transform):
-    mTransform(transform)
-  {  }
+  purrCamera::purrCamera()
+  {}
 
   purrCamera::~purrCamera() {
     
   }
 
   glm::mat4 purrCamera::getProjection() {
-    return glm::perspective(glm::radians(mSettings.fov), mSettings.aspectRatio, mSettings.nearPlane, mSettings.farPlane);
+    glm::mat4 proj = glm::perspective(glm::radians(mSettings.fov), mSettings.aspectRatio, mSettings.nearPlane, mSettings.farPlane);
+    proj[1][1] *= -1.0f;
+    return proj;
   }
 
-  glm::mat4 purrCamera::getView() {
-    return glm::lookAt(mTransform->getPosition(), mTransform->getPosition() + mTransform->getForward(), glm::vec3(0.0f, -1.0f, 0.0f)); // TODO: Maybe let user to choose up direction?
+  glm::mat4 purrCamera::getView(purrTransform transform) {
+    return glm::lookAt(transform.getPosition(), transform.getPosition() + transform.getForward(), transform.getUp());
   }
 
 }

@@ -1,119 +1,111 @@
 #include <iostream>
 
+#define PURRENGINE_MAIN
 #include <PurrfectEngine/PurrfectEngine.hpp>
 
 using namespace PurrfectEngine;
-namespace renderer = PurrfectEngine::renderer;
-namespace input = PurrfectEngine::Input;
 
-purrPipeline* scenePipeline = nullptr;
-purrTexture* sceneRenderTarget = nullptr;
-purrSampler* sceneSampler = nullptr;
+class testApp : public purrApp {
+public:
+  testApp() :
+    purrApp(purrAppCreateInfo{ "PurrEngineTest" }, {
+      new purrAppRendererExt(new purrRenderer3D(), purrWindowInitInfo{ "PurrfectEngine - Test", 1920, 1080 }),
+      new purrAppAudioExt()
+    })
+  {}
 
-void createSceneObjects(int width, int height) {
-  sceneRenderTarget = new PurrfectEngine::purrTexture(width, height, VK_FORMAT_R16G16B16A16_SFLOAT);
-  sceneRenderTarget->initialize(sceneSampler, false);
-  PurrfectEngine::purrPipelineCreateInfo pipelineInfo = {
-    width, height,
-    { {VK_SHADER_STAGE_VERTEX_BIT, "../shaders/vert.spv"}, {VK_SHADER_STAGE_FRAGMENT_BIT, "../shaders/frag.spv"} },
-    sceneRenderTarget
-  };
-  scenePipeline = new PurrfectEngine::purrPipeline(pipelineInfo);
-  scenePipeline->initialize();
-  renderer::setScenePipeline(scenePipeline);
-}
-
-void cleanupSceneObjects() {
-  delete sceneRenderTarget;
-  delete scenePipeline;
-}
-
-void recreateSceneObjects(int width, int height) {
-  cleanupSceneObjects();
-  createSceneObjects(width, height);
-}
-
-int main(int argc, char **argv) {
-  PurrfectEngine::PurrfectEngineContext *context = new PurrfectEngine::PurrfectEngineContext();
-
-  try {
-  input::setContext(context);
-  renderer::setContext(context);
-  renderer::setVSync(true);
-  renderer::initialize("PurrfectEngine - Test", 1920, 1080);
-
-  purrScene *scene = new purrScene();
-  { // Initialize object
-    purrObject *object = new purrObject();
-    purrMesh *mesh = new purrMesh();
-    mesh->initialize("../models/ico.obj");
-    if (!mesh->isValid()) return 1;
-    object->addComponent(new purrMeshComp(mesh));
-    object->getTransform()->setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
-    scene->addObject(object);
+  ~testApp() {
+    cleanup();
   }
 
-  { // Initialize camera
-    purrObject *object = new purrObject(new purrTransform(glm::vec3(0.0f, 0.0f, -5.0f)));
-    object->addComponent(new purrCameraComp(new purrCamera()));
-    scene->addObject(object);
-    scene->setCamera(object);
+protected:
+  virtual bool initialize() override {
+    input::GetEventHandler()->on("keyEvent", [this](purrEvent* event) {
+      purrKeyEvent *keyEvent = (purrKeyEvent*)event;
+      if (keyEvent->getKey() == input::key::Escape && keyEvent->getAction() == input::button::Pressed) mPaused = !mPaused;
+      input::SetMouseMode(mPaused?input::MouseMode::Normal:input::MouseMode::Disabled);
+    });
+
+    // input::GetEventHandler()->on("mouseButtonEvent", [](purrEvent* event) {
+    //   purrMouseBtnEvent *mouseEvent = (purrMouseBtnEvent*)event;
+    // });
+
+    input::GetEventHandler()->on("mouseMoveEvent", [](purrEvent* event) {
+      purrMouseMoveEvent *mouseEvent = (purrMouseMoveEvent*)event;
+    });
+
+    input::SetMouseMode(input::MouseMode::Disabled);
+
+    mScene = new purrScene();
+
+    purrObject player = mScene->newObject();
+    player.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+    mPlayer = player.getUuid();
+
+    purrObject camera = player.createChild();
+    camera.addComponent<purrCameraComponent>(purrCamera());
+    mScene->setCamera(camera.getUuid());
+
+    purrObject meshObj = mScene->newObject();
+    meshObj.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, 5.0f));
+    if (!purrMesh3D::loadModel("./assets/models/pyramid.obj", mScene, &meshObj)) return 1;
+
+    purrObject lightObj = mScene->newObject();
+    lightObj.addComponent<purrLightComponent>(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    lightObj.getComponent<purrTransform>().setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
+
+    mRenderer = (purrRenderer3D*)purrRenderer::getInstance();
+    mRenderer->setScene(mScene);
+    return mRenderer->update();
   }
-  renderer::setScene(scene);
 
-  sceneSampler = new purrSampler();
-  sceneSampler->initialize(fr::frSampler::frSamplerInfo{});
+  virtual bool update(float dt) override {
+    if (mPaused) return true;
 
-  int width = 0, height = 0;
-  renderer::getSwapchainSize(&width, &height);
-  createSceneObjects(width, height);
+    auto player_opt = mScene->getObject(mPlayer);
+    if (!player_opt.has_value()) return true;
+    purrObject player = player_opt.value();
 
-  bool escapePressed = false;
-  float lastTime = 0;
-  while (!renderer::shouldClose()) {
-    float time = (float)glfwGetTime();
-    float deltaTime = time - lastTime;
-    lastTime = time;
-
-    glfwPollEvents();
-
+    static constexpr float speed = 100.0f;
     int x = input::IsKeyDown(input::key::D) - input::IsKeyDown(input::key::A);
     int z = input::IsKeyDown(input::key::W) - input::IsKeyDown(input::key::S);
 
-    glm::vec3 pos = scene->getCamera()->getTransform()->getPosition();
-    pos.x += x * deltaTime;
-    pos.z += z * deltaTime;
-    scene->getCamera()->getTransform()->setPosition(pos);
+    if (player.hasComponent<purrTransform>()) {
+      purrTransform &transform = player.getComponent<purrTransform>();
+      glm::vec3 forward = transform.getForward() * (float)z;
+      glm::vec3 right = transform.getRight() * (float)x;
+      if (glm::length(forward + right) > 0) transform.setPosition(transform.getPosition() + (glm::normalize(forward + right) * speed * dt));
 
-    if (!renderer::renderBegin()) {
-      renderer::getSwapchainSize(&width, &height);
-      recreateSceneObjects(width, height);
-      continue;
+      static constexpr float sensitivity = 100.0;
+      glm::dvec2 mouseDeltaD = input::GetMouseDelta();
+      glm::vec2 mouseDelta = glm::vec2((float)mouseDeltaD.x, (float)mouseDeltaD.y) * sensitivity * dt;
+      mRotationX -= mouseDelta.y;
+      mRotationX  = glm::clamp(mRotationX, -90.0f, 90.0f);
+
+      transform.setRotation(glm::angleAxis(mouseDelta.x, glm::vec3(0.0f, 1.0f, 0.0f)) * transform.getRotation());
+
+      auto cameraOpt = mScene->getCamera();
+      if (cameraOpt.has_value()) {
+        purrTransform &cameraTransform = cameraOpt.value().getComponent<purrTransform>();
+        cameraTransform.setRotation(glm::quat(glm::vec3(glm::radians(mRotationX), 0.0f, 0.0f)));
+      }
     }
 
-    renderer::updateCamera();
-    renderer::updateTransforms();
-    scenePipeline->begin({{{0.0f, 0.0f, 0.0f, 1.0f}}});
-    renderer::renderScene(scenePipeline);
-    scenePipeline->end();
-
-    renderer::render();
-    if (!renderer::present()) {
-      renderer::getSwapchainSize(&width, &height);
-      recreateSceneObjects(width, height);
-    }
-  }
-  
-  renderer::waitIdle();
-  delete scene;
-  delete sceneSampler;
-  cleanupSceneObjects();
-  renderer::cleanup();
-  } catch (fr::frVulkanException &ex) {
-    fprintf(stderr, "Vulkan exception caught: %s\n", ex.what());
+    return mRenderer->update();
   }
 
-  delete context;
+  virtual void cleanup() override {
+    delete mScene;
+  }
+private:
+  bool mPaused = false;
+  float mRotationX = 0.0f;
+private:
+  purrRenderer3D *mRenderer = nullptr;
+  purrScene *mScene = nullptr;
+  PUID mPlayer;
+};
 
-  return 0;
+purrApp* PurrfectEngine::CreateApp() {
+  return new testApp();
 }

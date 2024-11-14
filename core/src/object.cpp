@@ -1,89 +1,42 @@
 #include "PurrfectEngine/PurrfectEngine.hpp"
+#include "PurrfectEngine/object.hpp"
 
 #include <random>
+#include <cstring>
 
 namespace PurrfectEngine {
 
-  static std::random_device sRandomDevice;
-	static std::mt19937_64 sEngine(sRandomDevice());
-	static std::uniform_int_distribution<uint32_t> sUniformDistribution;
-
-  PUID::PUID():
-    mId(sUniformDistribution(sEngine))
+  purrObject::purrObject(purrScene *scene, entt::entity entity):
+    mScene(scene), mHandle(entity)
   {}
 
-  purrComponent::purrComponent()
-  {}
+  purrTransform *purrObject::fullTransform() {
+    if (!hasComponent<purrTransform>()) return nullptr;
+    purrTransform trans = getComponent<purrTransform>();
 
-  purrMeshComp::purrMeshComp(purrMesh *mesh):
-    mMesh(mesh)
-  { assert(mesh); }
+    glm::mat4 transMat = trans.getTransform();
+    purrObject obj = *this;
+    while (obj.hasComponent<ParentComponent>()) {
+      ParentComponent parent = obj.getComponent<ParentComponent>();
+      obj = purrObject{mScene, parent.parent};
+      if (!obj.hasComponent<purrTransform>()) continue;
+      transMat = obj.getComponent<purrTransform>().getTransform() * transMat;
+    }
 
-  // purrMeshComp::purrMeshComp(purrMesh2D *mesh):
-  //   mMesh2D(mesh)
-  // {}
-  
-  purrMeshComp::purrMeshComp(bool is2D, const char *filename)
-  {
-    assert(!is2D && "2D not supported yet!");
-    // if (is2D) {
-    //   mMesh2D = new purrMesh2D();
-    //   mMesh2D->initialize(filename);
-    // } else {
-      mMesh = new purrMesh();
-      mMesh->initialize(filename);
-    // }
+    return new purrTransform(transMat);
   }
 
-  purrMeshComp::~purrMeshComp() {
-    if (mMesh) delete mMesh;
-    // if (mMesh2D) delete mMesh2D;
-  }
-  
-  purrCameraComp::purrCameraComp(purrCamera *camera):
-    mCamera(camera)
-  { assert(camera); }
+  purrObject purrObject::createChild() {
+    purrObject child = mScene->newObject();
+    child.addComponent<ParentComponent>(mHandle);
+    if (hasComponent<ChildrenComponent>()) {
+      ChildrenComponent &children = getComponent<ChildrenComponent>();
+      children.children.push_back(child.mHandle);
+    } else {
+      addComponent<ChildrenComponent>(std::vector<entt::entity>{child.mHandle});
+    }
 
-  purrCameraComp::~purrCameraComp() {
-    delete mCamera;
-  }
-
-  purrObject::purrObject(purrTransform *transform):
-    mTransform(transform)
-  {}
-
-  purrObject::~purrObject() {
-    delete mTransform;
-    for (purrComponent *comp: mComponents) delete comp;
-  }
-
-  bool purrObject::addComponent(purrComponent* component) {
-    if (std::find(mCompNames.begin(), mCompNames.end(), component->getName()) != mCompNames.end())
-      return false;
-    mCompNames.push_back(component->getName());
-    mComponents.push_back(component);
-    return true;
-  }
-
-  bool purrObject::addComponent(purrCameraComp* component) {
-    component->getCamera()->setTransform(mTransform);
-    return addComponent((purrComponent*)component);
-  }
-
-  purrComponent *purrObject::getComponent(const char *name) {
-    auto it = std::find_if(mCompNames.begin(), mCompNames.end(), [&](const char* str) {
-      return strcmp(str, name) == 0;
-    });
-    if (it == mCompNames.end()) return nullptr;
-    return mComponents.at(it-mCompNames.begin());
-  }
-  
-  bool purrObject::removeComponent(const char *name) {
-    std::vector<const char*>::iterator it;
-    if ((it = std::find(mCompNames.begin(), mCompNames.end(), name)) == mCompNames.end()) return false;
-    mCompNames.erase(it);
-    mComponents.erase(mComponents.begin()+(it-mCompNames.begin()));
-    return true;
+    return child;
   }
 
 }

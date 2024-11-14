@@ -1,15 +1,24 @@
-[submodule "dependencies/fr"]
-	path = dependencies/fr
-	url = https://github.com/RealCatDev/fr.git
 [submodule "dependencies/glfw"]
 	path = dependencies/glfw
 	url = https://github.com/glfw/glfw
 [submodule "dependencies/glm"]
 	path = dependencies/glm
 	url = https://github.com/g-truc/glm
-[submodule "dependencies/json"]
-	path = dependencies/json
-	url = https://github.com/nlohmann/json
 [submodule "dependencies/assimp"]
 	path = dependencies/assimp
 	url = https://github.com/assimp/assimp
+[submodule "dependencies/KTX-Software"]
+	path = dependencies/KTX-Software
+	url = https://github.com/KhronosGroup/KTX-Software/
+[submodule "dependencies/openal-soft"]
+	path = dependencies/openal-soft
+	url = https://github.com/kcat/openal-soft
+[submodule "dependencies/libsndfile"]
+	path = dependencies/libsndfile
+	url = https://github.com/libsndfile/libsndfile
+[submodule "dependencies/entt"]
+	path = dependencies/entt
+	url = https://github.com/skypjack/entt
+[submodule "dependencies/purrr"]
+	path = dependencies/purrr
+	url = https://github.com/ClawsoftSolutions/purrr
